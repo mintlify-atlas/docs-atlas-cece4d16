@@ -1,0 +1,528 @@
+---
+title: "Semester Cleanup"
+description: "End-of-semester procedures and database cleanup process"
+icon: "broom"
+---
+
+## Overview
+
+At the end of each semester, the database must be cleaned to prepare for the next semester's data. This process removes all user data from the previous semester while preserving audit logs and administrative accounts.
+
+<Warning>
+  **Destructive Operation**: Semester cleanup permanently deletes all users, roles, and fallas records. Always export data before proceeding.
+</Warning>
+
+## Preparation Checklist
+
+Before initiating semester cleanup, complete these steps:
+
+<Steps>
+  <Step title="Export All Data">
+    Use the administrative reporting features to export:
+    - Complete user list (all roles)
+    - Fallas report (all incidents)
+    - Bloqueos report (all blocks)
+    - Faculty/program statistics
+    
+    Store these exports in a secure backup location.
+  </Step>
+  
+  <Step title="Verify Backups">
+    Open the exported files and verify:
+    - All expected records are present
+    - No data corruption
+    - Special characters display correctly
+  </Step>
+  
+  <Step title="Prepare New Semester Data">
+    Obtain CSV files with data for the new semester:
+    - Base users file
+    - Students file (if applicable)
+    - Employees file (if applicable)
+    - Contractors file (if applicable)
+    
+    See [CSV Format](/admin/semester/csv-format) for specifications.
+  </Step>
+  
+  <Step title="Notify Stakeholders">
+    Inform relevant parties about:
+    - Planned downtime (if any)
+    - New semester start date
+    - Any process changes
+  </Step>
+</Steps>
+
+## Cleanup Process
+
+The semester cleanup is performed through the data loading wizard:
+
+<Steps>
+  <Step title="Access the Data Loading Wizard">
+    Navigate to the **Cargar CSV** section in the admin panel.
+  </Step>
+  
+  <Step title="Enter New Semester Information">
+    On the first screen, provide:
+    - **Semester name** (e.g., "2026-2")
+    - **Start date** of the new semester
+    - **End date** of the new semester
+    
+    Verify dates are correct before proceeding.
+  </Step>
+  
+  <Step title="Upload CSV Files">
+    Follow the wizard to upload each CSV file:
+    1. Base users (required)
+    2. Students (optional)
+    3. Employees (optional)
+    4. Contractors (optional)
+    
+    See [Data Loading Process](/admin/semester/data-loading) for details.
+  </Step>
+  
+  <Step title="Review Summary">
+    On the confirmation screen, verify:
+    - Semester information is correct
+    - Record counts match expectations
+    - All required data files are included
+  </Step>
+  
+  <Step title="Confirm Cleanup">
+    Click **"Empezar semestre"** to:
+    1. Delete all previous semester data
+    2. Create the new semester record
+    3. Import all uploaded CSV data
+    
+    <Warning>
+      This action cannot be undone. Ensure you have exported and backed up all existing data.
+    </Warning>
+  </Step>
+</Steps>
+
+## Database Stored Procedure
+
+The cleanup is performed by the `sp_preparar_nuevo_semestre` stored procedure:
+
+### Procedure Signature
+
+```sql
+CALL sp_preparar_nuevo_semestre(
+    admin_id INT,           -- ID of the administrator executing the cleanup
+    codigo_semestre VARCHAR -- Code for the new semester (e.g., '2026-2')
+);
+```
+
+### Example Usage
+
+```sql
+CALL sp_preparar_nuevo_semestre(1, '2026-2');
+```
+
+### What Gets Deleted
+
+The procedure removes data from these tables:
+
+<CardGroup cols={2}>
+  <Card title="User Data" icon="users">
+    - `usuarios` (all non-admin users)
+    - `usuario_roles` (role assignments)
+  </Card>
+  
+  <Card title="Role-Specific Info" icon="id-card">
+    - `info_estudiantes`
+    - `info_empleados`
+    - `info_contratistas`
+  </Card>
+  
+  <Card title="Incident Records" icon="triangle-exclamation">
+    - `registro_fallas` (all fallas)
+    - `historial_bloqueos` (all blocks)
+  </Card>
+  
+  <Card title="System Config" icon="gear">
+    - Previous semester configuration
+  </Card>
+</CardGroup>
+
+### What Gets Preserved
+
+<AccordionGroup>
+  <Accordion title="Administrators" icon="user-shield">
+    Users with ID starting with `ADMIN*` are preserved.
+    
+    These accounts maintain their:
+    - Login credentials
+    - Permission levels
+    - Access rights
+  </Accordion>
+  
+  <Accordion title="Audit Logs" icon="clock-rotate-left">
+    The `auditoria` table is **never deleted**.
+    
+    This maintains complete traceability of:
+    - Who performed the cleanup
+    - When it was performed
+    - What data was affected
+  </Accordion>
+  
+  <Accordion title="Role Catalog" icon="list">
+    The `roles` table (Student, Employee, Contractor) is preserved.
+  </Accordion>
+</AccordionGroup>
+
+### Audit Trail
+
+The procedure automatically creates an audit record:
+
+```sql
+INSERT INTO auditoria (
+    accion, 
+    tabla_afectada, 
+    admin_id, 
+    observaciones
+) VALUES (
+    'PREPARAR_NUEVO_SEMESTRE',
+    'sistema',
+    admin_id,
+    CONCAT('Limpieza para semestre: ', codigo_semestre)
+);
+```
+
+This ensures full traceability of the cleanup operation.
+
+## Recommended Workflow
+
+Follow this timeline for end-of-semester operations:
+
+### Week Before Semester Ends
+
+<Steps>
+  <Step title="Generate Reports">
+    Export all reports while users are still active:
+    - Final fallas count per user
+    - Semester statistics
+    - Blocked users report
+  </Step>
+  
+  <Step title="Communicate Deadline">
+    Notify administrators and vigilantes:
+    - Last day to resolve pending blocks
+    - Cutoff date for fallas data
+    - New semester start date
+  </Step>
+  
+  <Step title="Prepare New Data">
+    Request updated CSV files from:
+    - Academic registry (students)
+    - Human resources (employees)
+    - Procurement (contractors)
+  </Step>
+</Steps>
+
+### Last Day of Semester
+
+<Steps>
+  <Step title="Final Data Export">
+    Export final versions of all reports.
+  </Step>
+  
+  <Step title="Validate CSV Files">
+    Test new semester CSV files:
+    - Verify format compliance
+    - Check for duplicates
+    - Validate required fields
+  </Step>
+  
+  <Step title="Schedule Maintenance Window">
+    Plan cleanup during low-usage period:
+    - Evening or weekend preferred
+    - Notify security/vigilante staff
+  </Step>
+</Steps>
+
+### First Day of New Semester
+
+<Steps>
+  <Step title="Execute Cleanup">
+    Run the data loading wizard with new semester data.
+  </Step>
+  
+  <Step title="Verify Data Load">
+    Check that all records were imported:
+    - User count matches CSV totals
+    - Roles assigned correctly
+    - No import errors
+  </Step>
+  
+  <Step title="Test System">
+    Verify system functionality:
+    - Test user login with several IDs
+    - Test fallas registration
+    - Verify admin panel access
+  </Step>
+  
+  <Step title="Communicate Completion">
+    Notify stakeholders that the new semester is active.
+  </Step>
+</Steps>
+
+## Post-Cleanup Verification
+
+After cleanup, verify these critical items:
+
+<Tabs>
+  <Tab title="User Data">
+    ```sql
+    -- Check total user count
+    SELECT COUNT(*) FROM usuarios;
+    
+    -- Verify role distribution
+    SELECT r.nombre_rol, COUNT(*) as total
+    FROM usuario_roles ur
+    JOIN roles r ON ur.rol_id = r.id
+    GROUP BY r.nombre_rol;
+    
+    -- Check for users with multiple roles
+    SELECT 
+        u.nombre_completo,
+        GROUP_CONCAT(r.nombre_rol) AS roles
+    FROM usuarios u
+    JOIN usuario_roles ur ON u.id = ur.usuario_id
+    JOIN roles r ON ur.rol_id = r.id
+    GROUP BY u.id
+    HAVING COUNT(r.id) > 1;
+    ```
+  </Tab>
+  
+  <Tab title="Fallas Reset">
+    ```sql
+    -- Verify all fallas counters are at zero
+    SELECT COUNT(*) FROM usuarios WHERE total_fallas != 0;
+    -- Should return: 0
+    
+    -- Verify all users are active
+    SELECT COUNT(*) FROM usuarios WHERE estado_general != 'activo';
+    -- Should return: 0
+    
+    -- Verify no fallas records exist
+    SELECT COUNT(*) FROM registro_fallas;
+    -- Should return: 0
+    ```
+  </Tab>
+  
+  <Tab title="Administrators">
+    ```sql
+    -- Verify admin accounts were preserved
+    SELECT 
+        u.id_institucional,
+        u.nombre_completo,
+        a.nivel_acceso
+    FROM administradores a
+    JOIN usuarios u ON a.usuario_id = u.id
+    WHERE u.id_institucional LIKE 'ADMIN%';
+    
+    -- Should return all admin accounts
+    ```
+  </Tab>
+  
+  <Tab title="Audit Log">
+    ```sql
+    -- Verify cleanup was logged
+    SELECT 
+        fecha_hora,
+        admin_id,
+        accion,
+        observaciones
+    FROM auditoria
+    WHERE accion = 'PREPARAR_NUEVO_SEMESTRE'
+    ORDER BY fecha_hora DESC
+    LIMIT 1;
+    ```
+  </Tab>
+</Tabs>
+
+## Rollback Procedure
+
+<Warning>
+  There is **no automatic rollback** for semester cleanup. If you need to restore data, you must use your backups.
+</Warning>
+
+### Manual Recovery Steps
+
+If cleanup was performed in error:
+
+<Steps>
+  <Step title="Stop System Access">
+    Immediately prevent users from creating new records:
+    - Take the application offline, or
+    - Restrict access to administrators only
+  </Step>
+  
+  <Step title="Restore from Backup">
+    If you have a database backup:
+    
+    ```bash
+    # Restore from SQL dump
+    mysql -u root -p ucc_control_acceso < backup_semester_2026-1.sql
+    ```
+  </Step>
+  
+  <Step title="Re-import from Exports">
+    If you only have Excel/CSV exports:
+    1. Convert exports to CSV format matching specifications
+    2. Use the data loading wizard to re-import
+    3. Manually recreate fallas records (if critically needed)
+  </Step>
+  
+  <Step title="Verify Restoration">
+    Check record counts match pre-cleanup state.
+  </Step>
+</Steps>
+
+<Tip>
+  Consider taking a full database backup immediately before cleanup. This provides a clean restoration point if needed.
+</Tip>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Import fails with 'foreign key constraint'">
+    This typically means role-specific CSVs reference users that weren't in the base users file.
+    
+    **Solution**:
+    1. Check that all `id_institucional` values in role files exist in the base users file
+    2. Verify base users were imported successfully before role files
+  </Accordion>
+  
+  <Accordion title="Admin accounts were deleted">
+    This should not happen if admin IDs start with `ADMIN*`.
+    
+    **Solution**:
+    1. Check `usuarios` table for remaining admin accounts
+    2. If deleted, restore from backup or manually recreate:
+    
+    ```sql
+    INSERT INTO usuarios (id_institucional, documento_identidad, nombre_completo, correo_institucional)
+    VALUES ('ADMIN001', '1234567890', 'Director Sistema', 'admin.control@ucc.edu.co');
+    
+    INSERT INTO administradores (usuario_id, nivel_acceso)
+    VALUES (LAST_INSERT_ID(), 'director');
+    ```
+  </Accordion>
+  
+  <Accordion title="Import shows fewer records than expected">
+    The CSV parser filters out rows without an `id_institucional`.
+    
+    **Solution**:
+    1. Open CSV in text editor
+    2. Verify no empty rows between data
+    3. Check that all data rows have a value in the first column
+  </Accordion>
+  
+  <Accordion title="Special characters corrupted after import">
+    This indicates an encoding issue during CSV import.
+    
+    **Solution**:
+    1. Verify source CSV is UTF-8 encoded
+    2. Re-export from Excel using "CSV UTF-8" format
+    3. Re-run the import
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Schedule Cleanup Carefully" icon="calendar">
+    Perform cleanup during low-usage periods (evenings, weekends, semester breaks) to minimize disruption.
+  </Card>
+  
+  <Card title="Triple-Check Backups" icon="shield-check">
+    Always verify backup integrity before cleanup. Open exports and spot-check data.
+  </Card>
+  
+  <Card title="Test with Sample Data" icon="flask">
+    If possible, test the cleanup procedure on a development/staging database first.
+  </Card>
+  
+  <Card title="Document the Process" icon="file-lines">
+    Keep notes on:
+    - Date/time of cleanup
+    - Administrator who performed it
+    - Record counts before/after
+    - Any issues encountered
+  </Card>
+  
+  <Card title="Maintain Historical Archives" icon="archive">
+    Store exports from each semester in a organized archive:
+    ```
+    backups/
+      2025-1/
+        usuarios.xlsx
+        fallas.xlsx
+        bloqueados.xlsx
+      2025-2/
+        ...
+      2026-1/
+        ...
+    ```
+  </Card>
+  
+  <Card title="Verify Before Confirming" icon="square-check">
+    On the confirmation screen, carefully review:
+    - Semester name and dates
+    - Record counts for each file
+    - Warning messages
+    
+    Take a screenshot for documentation.
+  </Card>
+</CardGroup>
+
+## Integration with Data Loading
+
+Semester cleanup is integrated into the data loading wizard:
+
+```javascript
+// From CargarCSVView.jsx:540
+const handleEmpezarSemestre = async () => {
+  // 1. Initialize new semester (performs cleanup)
+  await repo.iniciarNuevoSemestre(
+    semestre.nombre, 
+    semestre.fechaInicio, 
+    semestre.fechaFin
+  );
+  
+  // 2. Load all CSV data
+  const res = {};
+  if (staged.usuarios?.length)     
+    res.usuarios = await repo.cargarUsuarios(staged.usuarios);
+  if (staged.estudiantes?.length)  
+    res.estudiantes = await repo.cargarEstudiantes(staged.estudiantes);
+  if (staged.empleados?.length)    
+    res.empleados = await repo.cargarEmpleados(staged.empleados);
+  if (staged.contratistas?.length) 
+    res.contratistas = await repo.cargarContratistas(staged.contratistas);
+  
+  setResultado(res);
+}
+```
+
+The cleanup happens automatically when `iniciarNuevoSemestre()` is called, ensuring the database is clean before new data is imported.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Data Loading Process" icon="upload" href="/admin/semester/data-loading">
+    Return to the data loading guide to learn about the CSV upload workflow
+  </Card>
+  
+  <Card title="CSV Format Reference" icon="file-csv" href="/admin/semester/csv-format">
+    Review CSV format specifications for preparing new semester data
+  </Card>
+  <Card title="Export Reports" icon="download" href="/admin/reports">
+    Learn how to export data before cleanup
+  </Card>
+  
+  <Card title="User Management" icon="users" href="/admin/dashboard-overview">
+    Understand user management after cleanup
+  </Card>
+</CardGroup>

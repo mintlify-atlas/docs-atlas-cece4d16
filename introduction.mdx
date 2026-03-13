@@ -1,0 +1,85 @@
+---
+title: "Introduction"
+description: "Sistema de control de acceso contingente para la Universidad Cooperativa de Colombia"
+---
+
+## Welcome to UCC Control de Acceso
+
+UCC Control de Acceso is a comprehensive access management system designed for Universidad Cooperativa de Colombia (UCC) to manage contingent entry for users who do not have their physical ID card.
+
+<Note>
+This system is **ONLY** used when users do not carry their physical ID card. It does not register normal access entries.
+</Note>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Institutional ID Authentication" icon="id-card">
+    Simple login using unique institutional ID numbers
+  </Card>
+  <Card title="Multi-Role Support" icon="users">
+    Support for students, employees, and contractors with multiple role assignments
+  </Card>
+  <Card title="Automatic Blocking" icon="shield-halved">
+    Automatic user blocking after 4 failures or immediate blocking for loss/theft
+  </Card>
+  <Card title="Admin Dashboard" icon="chart-line">
+    Real-time metrics and comprehensive user management tools
+  </Card>
+  <Card title="Excel Reports" icon="file-excel">
+    Generate monthly reports and statistics in Excel format
+  </Card>
+  <Card title="Bulk Data Loading" icon="database">
+    Load semester data via CSV for efficient user management
+  </Card>
+  <Card title="Complete Audit Trail" icon="clipboard-list">
+    Track all administrative actions and user activities
+  </Card>
+  <Card title="Clean Architecture" icon="code">
+    Built with Clean Architecture principles for maintainability
+  </Card>
+</CardGroup>
+
+## How It Works
+
+The system manages three types of failure incidents:
+
+1. **Forgot Card (Olvido)** - Allows 3 entries, blocks on the 4th occurrence
+2. **Lost Card (Pérdida)** - Immediate blocking, user must visit administration
+3. **Stolen Card (Robo)** - Immediate blocking, user must visit administration
+
+## User Roles
+
+The system supports three primary user roles:
+
+- **Students (Estudiantes)** - Academic program members with faculty and semester information
+- **Employees (Empleados)** - University staff with department and position details
+- **Contractors (Contratistas)** - External service providers with company and contract information
+
+<Info>
+Users can have multiple roles simultaneously. For example, a student can also be an employee.
+</Info>
+
+## Get Started
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get the system up and running quickly
+  </Card>
+  <Card title="Architecture" icon="sitemap" href="/architecture">
+    Understand the system architecture
+  </Card>
+  <Card title="User Guides" icon="book-open" href="/guides/student-guide">
+    Learn how to use the system
+  </Card>
+  <Card title="Admin Guide" icon="user-shield" href="/guides/admin-guide">
+    Manage users and generate reports
+  </Card>
+</CardGroup>
+
+## Technology Stack
+
+- **Frontend**: React 18 with Vite
+- **Backend**: Supabase (PostgreSQL database with authentication)
+- **Styling**: Tailwind CSS with UCC institutional colors
+- **Architecture**: Clean Architecture with separated layers

@@ -1,0 +1,542 @@
+---
+title: 'Blocking Management'
+description: 'Block and unblock users with observation notes and automatic audit trail'
+icon: 'user-lock'
+---
+
+The Blocking Management system allows administrators to control user access through a modal interface with automatic audit logging and failure counter management.
+
+## Access Modal Component
+
+The `AccesoModal` component handles both blocking and unblocking operations:
+
+```jsx:src/modules/admin/presentation/components/AccesoModal.jsx
+export const AccesoModal = ({ usuario, onConfirmar, onCerrar }) => {
+  const esBloqueando = usuario.acceso === 'activo';
+  const nuevoAcceso = esBloqueando ? 'bloqueado' : 'activo';
+  // ...
+}
+```
+
+<Info>
+  The modal automatically adapts its appearance and text based on whether the user is being blocked or unblocked.
+</Info>
+
+## Modal States
+
+### Blocking State (Active → Blocked)
+
+<Card title="Blocking UI" icon="lock">
+  **Visual Elements:**
+  - Red color scheme (`bg-red-600`, `ring-red-100`)
+  - Lock icon (closed padlock)
+  - "Bloquear usuario" title
+  - Warning message about access restriction
+  
+  **Action:**
+  - Changes `acceso` from `'activo'` to `'bloqueado'`
+  - User cannot access via ID in the portal
+</Card>
+
+### Unblocking State (Blocked → Active)
+
+<Card title="Unblocking UI" icon="lock-open">
+  **Visual Elements:**
+  - Green color scheme (`bg-green-700`, `ring-green-100`)
+  - Unlock icon (open padlock)
+  - "Desbloquear usuario" title
+  - Confirmation message about re-enabling access
+  
+  **Action:**
+  - Changes `acceso` from `'bloqueado'` to `'activo'`
+  - Resets `total_fallas` to `0`
+</Card>
+
+## Opening the Modal
+
+The modal is triggered from the user table action buttons:
+
+```jsx
+{u.acceso === 'activo' ? (
+  <button onClick={() => setModalUsuario(u)}>
+    <LockIcon /> Bloquear
+  </button>
+) : (
+  <button onClick={() => setModalUsuario(u)}>
+    <UnlockIcon /> Desbloquear
+  </button>
+)}
+```
+
+<Steps>
+  <Step title="Click Action Button">
+    Administrator clicks "Bloquear" or "Desbloquear" in the user table
+  </Step>
+  <Step title="Modal Opens">
+    `setModalUsuario(u)` sets the selected user, triggering modal display
+  </Step>
+  <Step title="Confirm or Cancel">
+    Administrator can confirm the action or cancel to close the modal
+  </Step>
+</Steps>
+
+## Modal Implementation
+
+### Backdrop and Overlay
+
+```jsx
+<div
+  className="fixed inset-0 z-50 flex items-center justify-center p-4"
+  style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+  onClick={(e) => { if (e.target === e.currentTarget) onCerrar(); }}
+>
+  {/* Modal content */}
+</div>
+```
+
+<Tip>
+  Clicking outside the modal (on the backdrop) automatically closes it for better UX.
+</Tip>
+
+### Body Scroll Lock
+
+Prevents background scrolling when modal is open:
+
+```javascript
+useEffect(() => {
+  document.body.style.overflow = 'hidden';
+  return () => { document.body.style.overflow = ''; };
+}, []);
+```
+
+### Dynamic Color Scheme
+
+```javascript
+const color = esBloqueando
+  ? { 
+      bg: 'bg-red-600',
+      ring: 'ring-red-100',
+      btn: 'bg-red-600 hover:bg-red-700',
+      iconBg: 'bg-red-100'
+    }
+  : { 
+      bg: 'bg-green-700',
+      ring: 'ring-green-100',
+      btn: 'bg-green-700 hover:bg-green-800',
+      iconBg: 'bg-green-100'
+    };
+```
+
+## User Information Display
+
+The modal header shows key user information:
+
+```jsx
+<div className={`${color.bg} px-6 pt-6 pb-5`}>
+  <div className={`w-12 h-12 rounded-xl ${color.iconBg}`}>
+    {esBloqueando ? <LockIcon /> : <UnlockIcon />}
+  </div>
+  <h2 className="text-white font-bold text-lg">
+    {esBloqueando ? 'Bloquear usuario' : 'Desbloquear usuario'}
+  </h2>
+  <p className="text-white/75 text-sm">
+    {usuario.nombre_completo} · ID {usuario.id_institucional}
+  </p>
+</div>
+```
+
+## Confirmation Flow
+
+### Cancel Button
+
+```jsx
+<button
+  onClick={onCerrar}
+  disabled={cargando}
+  className="border border-gray-200 text-gray-600 hover:bg-gray-50"
+>
+  Cancelar
+</button>
+```
+
+### Confirm Button
+
+```jsx
+<button
+  onClick={handleConfirmar}
+  disabled={cargando}
+  className={`${color.btn} text-white font-semibold`}
+>
+  {cargando
+    ? 'Procesando...'
+    : esBloqueando ? 'Confirmar bloqueo' : 'Confirmar desbloqueo'}
+</button>
+```
+
+<Warning>
+  Both buttons are disabled while the request is processing to prevent duplicate submissions.
+</Warning>
+
+## Backend Integration
+
+The confirmation handler calls the repository method:
+
+```javascript
+const handleConfirmar = async () => {
+  setCargando(true);
+  try {
+    await onConfirmar(usuario.id_institucional, nuevoAcceso);
+  } catch (err) {
+    console.error('toggleAcceso error:', err);
+  } finally {
+    setCargando(false);
+  }
+};
+```
+
+### Toggle Access Hook
+
+Implemented in `useAdminDashboard.js`:
+
+```javascript
+const toggleAcceso = async (id_institucional, nuevoAcceso) => {
+  await repo.toggleAcceso(id_institucional, nuevoAcceso);
+  
+  // Optimistic UI update
+  setUsuarios(prev =>
+    prev.map(u =>
+      u.id_institucional === id_institucional
+        ? { 
+            ...u, 
+            acceso: nuevoAcceso, 
+            total_fallas: nuevoAcceso === 'activo' ? 0 : u.total_fallas 
+          }
+        : u
+    )
+  );
+  
+  // Refresh stats
+  repo.getStats().then(s => setStats(s)).catch(() => {});
+};
+```
+
+<Check>
+  The UI updates immediately (optimistic update) before the server responds, providing instant feedback to the administrator.
+</Check>
+
+## Database Operations
+
+### Blocking a User
+
+```sql
+UPDATE usuarios
+SET acceso = 'bloqueado'
+WHERE id_institucional = $1;
+```
+
+### Unblocking a User
+
+Unblocking also resets the failure counter:
+
+```sql
+UPDATE usuarios
+SET acceso = 'activo',
+    total_fallas = 0
+WHERE id_institucional = $1;
+```
+
+<Info>
+  The failure counter reset is crucial - it gives users a fresh start after administrative intervention.
+</Info>
+
+## Automatic Audit Trail
+
+All blocking/unblocking actions are automatically logged in the `auditoria` table:
+
+```sql
+INSERT INTO auditoria (
+  accion,
+  tabla_afectada,
+  registro_id,
+  usuario_id,
+  admin_id,
+  datos_anteriores,
+  datos_nuevos,
+  ip_address,
+  fecha_hora
+) VALUES (
+  'toggle_acceso',
+  'usuarios',
+  $1,  -- user ID
+  $2,  -- user ID
+  $3,  -- admin ID
+  $4,  -- old state JSON
+  $5,  -- new state JSON
+  $6,  -- IP address
+  NOW()
+);
+```
+
+### Audit Record Example
+
+```json
+{
+  "accion": "desbloqueo_usuario",
+  "tabla_afectada": "usuarios",
+  "registro_id": 123,
+  "admin_id": 1,
+  "datos_anteriores": {
+    "acceso": "bloqueado",
+    "total_fallas": 4
+  },
+  "datos_nuevos": {
+    "acceso": "activo",
+    "total_fallas": 0
+  },
+  "fecha_hora": "2026-03-13T14:30:00Z"
+}
+```
+
+<Check>
+  Complete audit trail ensures accountability and allows tracking of all administrative actions.
+</Check>
+
+## Viewing Blocked Users
+
+Administrators can filter to see only blocked users:
+
+```jsx
+<button onClick={() => setFiltroAcceso('bloqueado')}>
+  Bloqueados
+</button>
+```
+
+This filters the user table to show only users with `acceso === 'bloqueado'`.
+
+### Blocked Users Query
+
+From the database perspective:
+
+```sql
+SELECT 
+  u.id_institucional,
+  u.nombre_completo,
+  u.total_fallas,
+  u.acceso,
+  hb.fecha_bloqueo,
+  hb.motivo_bloqueo
+FROM usuarios u
+LEFT JOIN historial_bloqueos hb ON u.id = hb.usuario_id
+WHERE u.acceso = 'bloqueado'
+  AND hb.estado = 'activo'
+ORDER BY hb.fecha_bloqueo DESC;
+```
+
+## Blocking Scenarios
+
+### Manual Administrative Block
+
+<Steps>
+  <Step title="Administrator Decision">
+    Admin identifies a user who needs to be blocked (disciplinary action, security concern, etc.)
+  </Step>
+  <Step title="Click Block Button">
+    Opens modal with red warning UI
+  </Step>
+  <Step title="Confirm Action">
+    Modal processes the block and updates database
+  </Step>
+  <Step title="User Blocked">
+    User cannot access portal via ID until unblocked
+  </Step>
+</Steps>
+
+### Automatic Block (4 Failures)
+
+When a user reaches 4 failures, they are automatically blocked:
+
+```sql:database/supabase/07_fallas.sql
+CREATE OR REPLACE FUNCTION fn_actualizar_fallas()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_total INT;
+BEGIN
+    SELECT COUNT(*) INTO v_total
+    FROM fallas
+    WHERE id_institucional = NEW.id_institucional;
+
+    UPDATE usuarios
+    SET total_fallas = v_total,
+        acceso = CASE WHEN v_total >= 4 THEN 'bloqueado' ELSE acceso END
+    WHERE id_institucional = NEW.id_institucional;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+<Warning>
+  Users blocked automatically (4+ failures) must be unblocked manually by an administrator. The system does not auto-unblock.
+</Warning>
+
+## Unblocking Process
+
+### When to Unblock
+
+Administrators typically unblock users when:
+
+- User has replaced their lost/stolen card
+- User has been cleared after disciplinary review
+- Sufficient time has passed since the blocking event
+- User demonstrates understanding of card policies
+
+### Adding Observations
+
+While the current UI doesn't show an observation field, the backend supports it:
+
+```javascript
+// Future enhancement - add observation field
+await repo.desbloquearUsuario(
+  id_institucional,
+  adminId,
+  'Usuario presentó carnet nuevo'
+);
+```
+
+## Stats Refresh
+
+After blocking/unblocking, dashboard stats are automatically refreshed:
+
+```javascript
+repo.getStats().then(s => setStats(s)).catch(() => {});
+```
+
+This updates:
+- Active user count
+- Blocked user count
+- Users at risk (3 failures)
+
+## Loading States
+
+The modal shows a loading state during processing:
+
+```jsx
+{cargando ? (
+  <button disabled className="opacity-60">
+    Procesando...
+  </button>
+) : (
+  <button onClick={handleConfirmar}>
+    Confirmar {esBloqueando ? 'bloqueo' : 'desbloqueo'}
+  </button>
+)}
+```
+
+## Error Handling
+
+If the operation fails, the error is logged:
+
+```javascript
+try {
+  await onConfirmar(usuario.id_institucional, nuevoAcceso);
+} catch (err) {
+  console.error('toggleAcceso error:', err);
+  // Modal stays open for retry
+} finally {
+  setCargando(false);
+}
+```
+
+<Tip>
+  Consider adding toast notifications for success/error feedback in production implementations.
+</Tip>
+
+## Block History
+
+The `historial_bloqueos` table maintains a complete record:
+
+```sql
+CREATE TABLE historial_bloqueos (
+  id SERIAL PRIMARY KEY,
+  usuario_id INTEGER REFERENCES usuarios(id),
+  fecha_bloqueo TIMESTAMP DEFAULT NOW(),
+  motivo_bloqueo VARCHAR(50),
+  observacion_bloqueo TEXT,
+  fecha_desbloqueo TIMESTAMP NULL,
+  desbloqueado_por INTEGER REFERENCES administradores(id),
+  observacion_desbloqueo TEXT NULL,
+  estado VARCHAR(20) DEFAULT 'activo'
+);
+```
+
+### Viewing Block History
+
+```sql
+SELECT 
+  hb.fecha_bloqueo,
+  hb.motivo_bloqueo,
+  hb.fecha_desbloqueo,
+  admin.nombre_completo AS desbloqueado_por,
+  hb.observacion_desbloqueo
+FROM historial_bloqueos hb
+LEFT JOIN administradores adm ON hb.desbloqueado_por = adm.id
+LEFT JOIN usuarios admin ON adm.usuario_id = admin.id
+WHERE hb.usuario_id = $1
+ORDER BY hb.fecha_bloqueo DESC;
+```
+
+## UI Color Coding
+
+### Badge Colors
+
+```javascript
+const BADGE_ESTADO = {
+  activo:    'bg-green-100 text-green-700',
+  bloqueado: 'bg-red-100 text-red-600',
+};
+```
+
+### Action Button Colors
+
+- **Block Button**: Red border (`border-red-200 text-red-600 hover:bg-red-50`)
+- **Unblock Button**: Green border (`border-green-200 text-green-700 hover:bg-green-50`)
+
+## Keyboard Accessibility
+
+The modal supports keyboard navigation:
+
+- **Tab**: Navigate between Cancel and Confirm buttons
+- **Enter**: Activate focused button
+- **Escape**: Close modal (can be added)
+
+```jsx
+// Enhancement: Add escape key handler
+useEffect(() => {
+  const handleEscape = (e) => {
+    if (e.key === 'Escape') onCerrar();
+  };
+  document.addEventListener('keydown', handleEscape);
+  return () => document.removeEventListener('keydown', handleEscape);
+}, [onCerrar]);
+```
+
+## Security Considerations
+
+<CardGroup cols={2}>
+  <Card title="Admin Authentication" icon="shield-check">
+    Only authenticated administrators can access the blocking interface
+  </Card>
+  <Card title="Audit Logging" icon="file-lines">
+    All actions are logged with admin ID and timestamp
+  </Card>
+  <Card title="Confirmation Required" icon="circle-check">
+    Two-step confirmation prevents accidental blocks
+  </Card>
+  <Card title="Optimistic Updates" icon="bolt">
+    UI updates immediately but can be rolled back if server fails
+  </Card>
+</CardGroup>
+
+<Card title="Complete Guide" icon="book" href="/admin/dashboard-overview">
+  Return to Dashboard Overview for complete admin documentation
+</Card>

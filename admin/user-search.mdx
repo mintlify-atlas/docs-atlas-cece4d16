@@ -1,0 +1,387 @@
+---
+title: 'User Search'
+description: 'Search and view detailed user information including multi-role profiles and failure history'
+icon: 'magnifying-glass'
+---
+
+The User Search functionality (implemented in `EstudiantesView.jsx`) allows administrators to search, filter, and manage all users in the system with detailed profile information.
+
+## Search Interface
+
+### Search Bar
+
+The search bar supports multiple search criteria:
+
+```jsx
+<input
+  type="text"
+  placeholder="Buscar por nombre, ID, rol o información..."
+  value={busqueda}
+  onChange={e => setBusqueda(e.target.value)}
+/>
+```
+
+**Searchable Fields:**
+- `nombre_completo` - Full name
+- `id_institucional` - Institutional ID (e.g., 80123456)
+- `infoExtra` - Additional role-specific information
+- `roles` - User roles (Estudiante, Empleado, Contratista)
+
+<Tip>
+  The search is case-insensitive and performs real-time filtering as you type.
+</Tip>
+
+### Filter Buttons
+
+Quick filters for access status:
+
+```jsx
+<div className="flex gap-1 bg-white border border-gray-200 rounded-xl">
+  {['todos', 'activo', 'bloqueado'].map(op => (
+    <button
+      onClick={() => setFiltroAcceso(op)}
+      className={filtroAcceso === op ? 'bg-green-700 text-white' : 'text-gray-500'}
+    >
+      {op === 'todos' ? 'Todos' : op === 'activo' ? 'Activos' : 'Bloqueados'}
+    </button>
+  ))}
+</div>
+```
+
+<CardGroup cols={3}>
+  <Card title="Todos" icon="users">
+    Display all users regardless of status
+  </Card>
+  <Card title="Activos" icon="circle-check">
+    Filter only active users
+  </Card>
+  <Card title="Bloqueados" icon="ban">
+    Filter only blocked users
+  </Card>
+</CardGroup>
+
+## User Table Display
+
+The main table shows comprehensive user information:
+
+### Table Structure
+
+```jsx
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Nombre completo</th>
+      <th>Rol(es)</th>
+      <th>Info</th>
+      <th>Fallas</th>
+      <th>Estado</th>
+      <th>Acciones</th>
+    </tr>
+  </thead>
+  <tbody>
+    {filtrados.map(u => (
+      <tr key={u.id_institucional}>
+        {/* User row */}
+      </tr>
+    ))}
+  </tbody>
+</table>
+```
+
+### Column Details
+
+<AccordionGroup>
+  <Accordion title="ID Institucional" icon="id-card">
+    Displays the user's institutional ID in monospace font:
+    ```jsx
+    <td className="font-mono text-gray-600 text-xs">
+      {u.id_institucional}
+    </td>
+    ```
+    Example: `80123456`
+  </Accordion>
+
+  <Accordion title="Nombre Completo" icon="user">
+    User's full name in bold:
+    ```jsx
+    <td className="text-gray-800 font-medium whitespace-nowrap">
+      {u.nombre_completo}
+    </td>
+    ```
+  </Accordion>
+
+  <Accordion title="Rol(es)" icon="user-tag">
+    Multi-role display with color-coded badges:
+    ```jsx
+    {u.roles.map(r => (
+      <span className={BADGE_ROL[r.toLowerCase()]}>
+        {r}
+      </span>
+    ))}
+    ```
+    
+    **Badge Colors:**
+    - Estudiante: Blue (`bg-blue-100 text-blue-700`)
+    - Empleado: Purple (`bg-purple-100 text-purple-700`)
+    - Contratista: Orange (`bg-orange-100 text-orange-700`)
+  </Accordion>
+
+  <Accordion title="Info Adicional" icon="circle-info">
+    Role-specific information badges:
+    ```jsx
+    {u.infoItems.map((item, i) => (
+      <span
+        className={
+          item.tipo === 'programa' ? 'bg-blue-50 text-blue-700' :
+          item.tipo === 'dependencia' ? 'bg-purple-50 text-purple-700' :
+          item.tipo === 'empresa' ? 'bg-orange-50 text-orange-700' :
+          'bg-gray-100 text-gray-500'
+        }
+      >
+        {item.valor}
+      </span>
+    ))}
+    ```
+    
+    **Info Types:**
+    - **programa**: Academic program (for students)
+    - **dependencia**: Department (for employees)
+    - **empresa**: Company name (for contractors)
+  </Accordion>
+
+  <Accordion title="Contador de Fallas" icon="exclamation-triangle">
+    Failure counter with visual warning:
+    ```jsx
+    <span className={u.total_fallas >= 3 ? 'text-red-500' : 'text-gray-700'}>
+      {u.total_fallas}
+    </span>
+    <span className="text-gray-300 text-xs"> / 4</span>
+    ```
+    
+    Shows in red when user has 3+ failures (at risk of blocking).
+  </Accordion>
+
+  <Accordion title="Estado de Acceso" icon="shield">
+    Status badge:
+    ```jsx
+    <span className={
+      u.acceso === 'activo' 
+        ? 'bg-green-100 text-green-700'
+        : 'bg-red-100 text-red-600'
+    }>
+      {u.acceso === 'activo' ? 'Activo' : 'Bloqueado'}
+    </span>
+    ```
+  </Accordion>
+
+  <Accordion title="Botones de Acción" icon="gears">
+    Context-aware action buttons:
+    ```jsx
+    {u.acceso === 'activo' ? (
+      <button onClick={() => setModalUsuario(u)}>
+        🔒 Bloquear
+      </button>
+    ) : (
+      <button onClick={() => setModalUsuario(u)}>
+        🔓 Desbloquear
+      </button>
+    )}
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Multi-Role Information
+
+Users can have multiple roles simultaneously. The system displays all active roles:
+
+### Example: Student + Employee
+
+```javascript
+{
+  id_institucional: '80123456',
+  nombre_completo: 'Juan Pérez Gómez',
+  roles: ['Estudiante', 'Empleado'],
+  infoItems: [
+    { tipo: 'programa', valor: 'Ingeniería de Sistemas' },
+    { tipo: 'dependencia', valor: 'Coordinación de Tesorería' }
+  ],
+  total_fallas: 2,
+  acceso: 'activo'
+}
+```
+
+<Info>
+  The multi-role system is implemented via the `usuario_roles` junction table, allowing M:N relationships between users and roles.
+</Info>
+
+## Filtering Logic
+
+The filtering combines search and status filters:
+
+```javascript
+const filtrados = usuarios.filter(u => {
+  // Search filter
+  const coincideBusqueda =
+    u.nombre_completo?.toLowerCase().includes(busqueda.toLowerCase()) ||
+    u.id_institucional?.toLowerCase().includes(busqueda.toLowerCase()) ||
+    u.infoExtra?.toLowerCase().includes(busqueda.toLowerCase()) ||
+    u.roles?.some(r => r.toLowerCase().includes(busqueda.toLowerCase()));
+
+  // Status filter
+  const coincideAcceso =
+    filtroAcceso === 'todos' || u.acceso === filtroAcceso;
+
+  return coincideBusqueda && coincideAcceso;
+});
+```
+
+## User Data Structure
+
+The user object returned from `getUsuarios()` has this structure:
+
+```typescript
+interface Usuario {
+  id_institucional: string;        // e.g., '80123456'
+  nombre_completo: string;         // Full name
+  documento_identidad: string;     // National ID
+  correo_institucional: string;    // @ucc.edu.co email
+  roles: string[];                 // ['Estudiante', 'Empleado', ...]
+  infoExtra?: string;             // Concatenated role info
+  infoItems?: Array<{             // Structured role info
+    tipo: 'programa' | 'dependencia' | 'empresa';
+    valor: string;
+  }>;
+  total_fallas: number;           // 0-4
+  acceso: 'activo' | 'bloqueado'; // Current status
+}
+```
+
+## Search by Institutional ID
+
+When searching by ID, administrators can quickly find a specific user:
+
+<Steps>
+  <Step title="Enter ID">
+    Type the institutional ID (e.g., `80123456`) in the search bar
+  </Step>
+  <Step title="Instant Filter">
+    The table instantly filters to show only matching users
+  </Step>
+  <Step title="View Profile">
+    See all roles, programs, departments, and failure history
+  </Step>
+  <Step title="Take Action">
+    Block or unblock the user directly from the table
+  </Step>
+</Steps>
+
+## Search by Document Number
+
+Alternatively, search using the national identity document:
+
+```javascript
+u.documento_identidad?.includes(busqueda)
+```
+
+<Tip>
+  The search supports partial matches, so typing `1234` will find all users with those digits in their ID or document.
+</Tip>
+
+## Empty States
+
+The view handles various empty states:
+
+### Loading State
+```jsx
+{loading ? (
+  <div className="py-16 text-center text-gray-400 text-sm">
+    Cargando usuarios...
+  </div>
+) : /* ... */}
+```
+
+### No Results
+```jsx
+{filtrados.length === 0 && (
+  <div className="py-16 text-center text-gray-400 text-sm">
+    {busqueda || filtroAcceso !== 'todos' 
+      ? 'No hay resultados para tu búsqueda.'
+      : 'No hay usuarios registrados.'}
+  </div>
+)}
+```
+
+### No Roles Assigned
+```jsx
+{u.roles.length > 0 ? (
+  /* Render role badges */
+) : (
+  <span className="text-gray-300 text-xs">Sin rol</span>
+)}
+```
+
+## Result Counter
+
+The table header shows the filtered count:
+
+```jsx
+<p className="text-xs text-gray-400">
+  {loading 
+    ? 'Cargando...' 
+    : `${filtrados.length} usuario${filtrados.length !== 1 ? 's' : ''}`}
+</p>
+```
+
+## Failure History View
+
+While the table shows the total failure count, detailed history is accessed via the modal or dedicated view. The failure counter provides quick visual feedback:
+
+```jsx
+<span className={`font-semibold ${
+  u.total_fallas >= 3 ? 'text-red-500' : 'text-gray-700'
+}`}>
+  {u.total_fallas}
+</span>
+```
+
+<Warning>
+  Users with 3 failures are displayed in red as a visual warning that they are one failure away from automatic blocking.
+</Warning>
+
+## Database Queries
+
+The user list comes from the `info_estudiantes`, `info_empleados`, and `info_contratistas` tables joined with `usuarios`:
+
+```sql
+SELECT 
+  u.id_institucional,
+  u.nombre_completo,
+  u.total_fallas,
+  u.acceso,
+  -- Role-specific info from joined tables
+FROM usuarios u
+LEFT JOIN info_estudiantes ie ON u.id_institucional = ie.id_institucional
+LEFT JOIN info_empleados em ON u.id_institucional = em.id_institucional
+LEFT JOIN info_contratistas ct ON u.id_institucional = ct.id_institucional
+```
+
+## Responsive Design
+
+The table is wrapped in a horizontal scroll container for mobile:
+
+```jsx
+<div className="overflow-x-auto">
+  <table className="w-full">
+    {/* Table content */}
+  </table>
+</div>
+```
+
+<Check>
+  The search and filter controls stack vertically on mobile using Flexbox with responsive breakpoints.
+</Check>
+
+<Card title="Next Steps" icon="arrow-right" href="/admin/blocking-management">
+  Learn how to block and unblock users with the modal interface
+</Card>

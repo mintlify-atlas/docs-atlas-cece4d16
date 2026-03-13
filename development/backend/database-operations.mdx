@@ -1,0 +1,669 @@
+---
+title: "Database Operations"
+description: "CRUD operations, triggers, and real-time features with Supabase"
+---
+
+## Overview
+
+This guide covers common database operations for the UCC Control de Acceso system, including CRUD operations, stored procedures, triggers, and real-time subscriptions.
+
+## Basic CRUD Operations
+
+### Create (Insert)
+
+#### Insert Single User
+
+```javascript
+import { supabase } from './supabaseClient';
+
+const { data, error } = await supabase
+  .from('usuarios')
+  .insert({
+    id_institucional: '80123456',
+    documento_identidad: '1234567890',
+    nombre_completo: 'Juan Pérez',
+    acceso: 'activo',
+    total_fallas: 0
+  })
+  .select()  // Return inserted row
+  .single();
+
+if (error) {
+  console.error('Error inserting user:', error.message);
+} else {
+  console.log('User created:', data);
+}
+```
+
+#### Bulk Insert (CSV Upload)
+
+```javascript
+const usuarios = [
+  {
+    id_institucional: '80100001',
+    documento_identidad: '1001234567',
+    nombre_completo: 'María García',
+    acceso: 'activo',
+    total_fallas: 0
+  },
+  {
+    id_institucional: '80100002',
+    documento_identidad: '1001234568',
+    nombre_completo: 'Carlos López',
+    acceso: 'activo',
+    total_fallas: 0
+  }
+];
+
+const { data, error } = await supabase
+  .from('usuarios')
+  .insert(usuarios)
+  .select();
+
+if (error) {
+  console.error('Bulk insert failed:', error.message);
+} else {
+  console.log(`${data.length} users inserted`);
+}
+```
+
+### Read (Select)
+
+#### Get Single User by ID
+
+```javascript
+const { data, error } = await supabase
+  .from('usuarios')
+  .select('*')
+  .eq('id_institucional', '80123456')
+  .single();
+
+if (error) {
+  if (error.code === 'PGRST116') {
+    console.log('User not found');
+  } else {
+    console.error('Database error:', error.message);
+  }
+} else {
+  console.log('User:', data);
+}
+```
+
+#### Get All Active Users
+
+```javascript
+const { data, error } = await supabase
+  .from('usuarios')
+  .select('*')
+  .eq('acceso', 'activo')
+  .order('nombre_completo');
+
+if (!error) {
+  console.log(`Found ${data.length} active users`);
+}
+```
+
+#### Get Users with Filters
+
+```javascript
+// Users with 3 or more failures
+const { data: atRiskUsers } = await supabase
+  .from('usuarios')
+  .select('*')
+  .gte('total_fallas', 3)
+  .eq('acceso', 'activo');
+
+// Blocked users
+const { data: blockedUsers } = await supabase
+  .from('usuarios')
+  .select('*')
+  .eq('acceso', 'bloqueado');
+```
+
+### Update
+
+#### Update User Access Status
+
+```javascript
+const { data, error } = await supabase
+  .from('usuarios')
+  .update({ acceso: 'bloqueado' })
+  .eq('id_institucional', '80123456')
+  .select()
+  .single();
+
+if (!error) {
+  console.log('User blocked:', data);
+}
+```
+
+#### Increment Failure Counter
+
+```javascript
+// Get current count
+const { data: user } = await supabase
+  .from('usuarios')
+  .select('total_fallas')
+  .eq('id_institucional', '80123456')
+  .single();
+
+// Increment
+const { error } = await supabase
+  .from('usuarios')
+  .update({ total_fallas: user.total_fallas + 1 })
+  .eq('id_institucional', '80123456');
+```
+
+<Note>
+**Better approach**: Let triggers handle failure counting automatically (see Triggers section below).
+</Note>
+
+### Delete
+
+#### Delete User
+
+```javascript
+const { error } = await supabase
+  .from('usuarios')
+  .delete()
+  .eq('id_institucional', '80123456');
+
+if (!error) {
+  console.log('User deleted (cascades to related tables)');
+}
+```
+
+<Warning>
+Deleting a user cascades to `usuario_roles`, `info_estudiante`, `info_empleado`, `info_contratista`, and `fallas` due to `ON DELETE CASCADE` constraints.
+</Warning>
+
+## Complex Queries
+
+### Joins: User with Roles
+
+```javascript
+const { data, error } = await supabase
+  .from('usuario_roles')
+  .select(`
+    id_institucional,
+    roles (
+      nombre_rol,
+      descripcion
+    )
+  `)
+  .eq('id_institucional', '80123456');
+
+// Result:
+// [
+//   {
+//     id_institucional: '80123456',
+//     roles: { nombre_rol: 'Estudiante', descripcion: '...' }
+//   }
+// ]
+
+const roles = data.map(r => r.roles.nombre_rol);
+console.log('User roles:', roles);
+```
+
+### Get Complete User Profile
+
+```javascript
+export class UserProfileRepositoryImpl {
+  async getProfileData(idInstitucional) {
+    // 1. Get user roles
+    const { data: rolesData, error: rolesError } = await supabase
+      .from('usuario_roles')
+      .select('roles(nombre_rol)')
+      .eq('id_institucional', idInstitucional);
+
+    if (rolesError) {
+      console.error('Error fetching roles:', rolesError.message);
+      return { roles: [], infoEstudiante: null, infoEmpleado: null };
+    }
+
+    const roles = rolesData.map(r => r.roles.nombre_rol);
+
+    // 2. Fetch role-specific info in parallel
+    const [estudianteRes, empleadoRes, contratistaRes, fallasRes] = 
+      await Promise.all([
+        roles.includes('Estudiante')
+          ? supabase
+              .from('info_estudiante')
+              .select('programa')
+              .eq('id_institucional', idInstitucional)
+              .single()
+          : Promise.resolve({ data: null }),
+
+        roles.includes('Empleado')
+          ? supabase
+              .from('info_empleado')
+              .select('cargo, dependencia')
+              .eq('id_institucional', idInstitucional)
+              .single()
+          : Promise.resolve({ data: null }),
+
+        roles.includes('Contratista')
+          ? supabase
+              .from('info_contratista')
+              .select('empresa')
+              .eq('id_institucional', idInstitucional)
+              .single()
+          : Promise.resolve({ data: null }),
+
+        supabase
+          .from('fallas')
+          .select('id, fecha_hora, motivo')
+          .eq('id_institucional', idInstitucional)
+          .order('fecha_hora', { ascending: false })
+      ]);
+
+    return {
+      roles,
+      infoEstudiante: estudianteRes.data ?? null,
+      infoEmpleado: empleadoRes.data ?? null,
+      infoContratista: contratistaRes.data ?? null,
+      fallas: fallasRes.data ?? []
+    };
+  }
+}
+```
+
+## Upsert Operations
+
+**Upsert** = Insert if doesn't exist, update if exists.
+
+### Upsert Student Info
+
+```javascript
+const { data, error } = await supabase
+  .from('info_estudiante')
+  .upsert(
+    {
+      id_institucional: '80123456',
+      programa: 'Ingeniería de Sistemas'
+    },
+    { onConflict: 'id_institucional' }  // Unique column
+  )
+  .select();
+
+if (!error) {
+  console.log('Student info saved:', data);
+}
+```
+
+### Bulk Upsert for CSV Import
+
+```javascript infrastructure/repositories/AdminRepositoryImpl.js
+async cargarEstudiantes(registros) {
+  const infoData = registros.map(r => ({
+    id_institucional: r.id_institucional,
+    programa: r.programa_academico || null
+  }));
+
+  const { error } = await supabase
+    .from('info_estudiante')
+    .upsert(infoData, { onConflict: 'id_institucional' });
+
+  if (error) {
+    throw new Error(`Error upserting students: ${error.message}`);
+  }
+
+  return { insertados: registros.length };
+}
+```
+
+## Database Triggers
+
+The system uses PostgreSQL triggers for automatic business logic.
+
+### Automatic Failure Counter
+
+When a failure is inserted, a trigger recalculates `total_fallas` and auto-blocks at 4:
+
+```sql database/supabase/07_fallas.sql
+CREATE OR REPLACE FUNCTION fn_actualizar_fallas()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_id_inst   VARCHAR(20);
+    v_total     INT;
+BEGIN
+    -- Get affected user ID
+    v_id_inst := CASE WHEN TG_OP = 'DELETE' 
+                      THEN OLD.id_institucional
+                      ELSE NEW.id_institucional END;
+
+    -- Count current failures
+    SELECT COUNT(*) INTO v_total
+    FROM fallas
+    WHERE id_institucional = v_id_inst;
+
+    -- Update counter and block if >= 4 failures
+    UPDATE usuarios
+    SET total_fallas = v_total,
+        acceso = CASE WHEN v_total >= 4 
+                      THEN 'bloqueado' 
+                      ELSE acceso END
+    WHERE id_institucional = v_id_inst;
+
+    RETURN NULL;
+END;
+$$;
+
+-- Trigger on INSERT
+CREATE TRIGGER trg_fallas_insert
+    AFTER INSERT ON fallas
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_actualizar_fallas();
+
+-- Trigger on DELETE (when admin resets failures)
+CREATE TRIGGER trg_fallas_delete
+    AFTER DELETE ON fallas
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_actualizar_fallas();
+```
+
+### Register Failure (JavaScript)
+
+```javascript
+async registrarFalla(idInstitucional, motivo) {
+  // Check user is not blocked
+  const { data: usuario, error: errUser } = await supabase
+    .from('usuarios')
+    .select('acceso, total_fallas')
+    .eq('id_institucional', idInstitucional)
+    .single();
+
+  if (errUser) throw new Error(errUser.message);
+
+  if (usuario.acceso === 'bloqueado') {
+    throw new Error('Usuario bloqueado, no puede registrar fallas.');
+  }
+
+  if (usuario.total_fallas >= 4) {
+    throw new Error('Usuario alcanzó el límite de 4 fallas.');
+  }
+
+  // Insert failure (trigger handles counter update)
+  const { error } = await supabase
+    .from('fallas')
+    .insert({ 
+      id_institucional: idInstitucional, 
+      motivo  // 'olvido' | 'perdida'
+    });
+
+  if (error) throw new Error(error.message);
+}
+```
+
+## Aggregations and Statistics
+
+### Count Users by Role
+
+```javascript
+const { data: roles } = await supabase
+  .from('usuario_roles')
+  .select('roles(nombre_rol)');
+
+const estudiantes = roles.filter(
+  r => r.roles.nombre_rol === 'Estudiante'
+).length;
+
+const empleados = roles.filter(
+  r => r.roles.nombre_rol === 'Empleado'
+).length;
+
+console.log({ estudiantes, empleados });
+```
+
+### Count Active/Blocked Users
+
+```javascript
+const { count: activos } = await supabase
+  .from('usuarios')
+  .select('*', { count: 'exact', head: true })
+  .eq('acceso', 'activo');
+
+const { count: bloqueados } = await supabase
+  .from('usuarios')
+  .select('*', { count: 'exact', head: true })
+  .eq('acceso', 'bloqueado');
+
+console.log({ activos, bloqueados });
+```
+
+### Failures in Last 7 Days
+
+```javascript infrastructure/repositories/AdminRepositoryImpl.js
+async getFallasUltimos7Dias() {
+  const hace7dias = new Date();
+  hace7dias.setDate(hace7dias.getDate() - 6);
+  hace7dias.setHours(0, 0, 0, 0);
+
+  const { data, error } = await supabase
+    .from('fallas')
+    .select('fecha_hora, motivo')
+    .gte('fecha_hora', hace7dias.toISOString())
+    .order('fecha_hora', { ascending: true });
+
+  if (error || !data) return [];
+
+  // Group by day
+  const diasMap = {};
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().split('T')[0];
+    const label = d.toLocaleDateString('es-CO', { 
+      weekday: 'short', 
+      day: 'numeric' 
+    });
+    diasMap[key] = { dia: label, olvido: 0, perdida: 0 };
+  }
+
+  data.forEach(({ fecha_hora, motivo }) => {
+    const key = new Date(fecha_hora).toISOString().split('T')[0];
+    if (diasMap[key]) {
+      diasMap[key][motivo]++;
+    }
+  });
+
+  return Object.values(diasMap);
+}
+```
+
+## Real-time Subscriptions
+
+Supabase supports real-time updates via PostgreSQL's `LISTEN/NOTIFY`.
+
+### Subscribe to User Changes
+
+```javascript
+const channel = supabase
+  .channel('usuarios-changes')
+  .on(
+    'postgres_changes',
+    { 
+      event: '*',  // INSERT, UPDATE, DELETE
+      schema: 'public',
+      table: 'usuarios'
+    },
+    (payload) => {
+      console.log('User changed:', payload);
+      // payload.eventType: 'INSERT' | 'UPDATE' | 'DELETE'
+      // payload.new: new row data
+      // payload.old: old row data (for UPDATE/DELETE)
+    }
+  )
+  .subscribe();
+
+// Cleanup
+channel.unsubscribe();
+```
+
+### Real-time Dashboard Updates
+
+```javascript
+import { useEffect, useState } from 'react';
+import { supabase } from './supabaseClient';
+
+export function useRealtimeUsers() {
+  const [usuarios, setUsuarios] = useState([]);
+
+  useEffect(() => {
+    // Initial fetch
+    fetchUsuarios();
+
+    // Subscribe to changes
+    const channel = supabase
+      .channel('usuarios-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'usuarios' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            setUsuarios(prev => [...prev, payload.new]);
+          } else if (payload.eventType === 'UPDATE') {
+            setUsuarios(prev =>
+              prev.map(u =>
+                u.id === payload.new.id ? payload.new : u
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setUsuarios(prev =>
+              prev.filter(u => u.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+    };
+  }, []);
+
+  async function fetchUsuarios() {
+    const { data } = await supabase
+      .from('usuarios')
+      .select('*')
+      .order('nombre_completo');
+    setUsuarios(data || []);
+  }
+
+  return usuarios;
+}
+```
+
+## Transaction Patterns
+
+Supabase doesn't expose PostgreSQL transactions directly, but you can use RPC for atomic operations.
+
+### Unblock User and Reset Failures
+
+```javascript
+async toggleAcceso(id_institucional, nuevoAcceso) {
+  // 1. Update access status
+  const { error } = await supabase
+    .from('usuarios')
+    .update({ acceso: nuevoAcceso })
+    .eq('id_institucional', id_institucional);
+
+  if (error) throw new Error(error.message);
+
+  // 2. If unblocking, delete all failures
+  // (trigger recalculates total_fallas = 0 automatically)
+  if (nuevoAcceso === 'activo') {
+    const { error: errFallas } = await supabase
+      .from('fallas')
+      .delete()
+      .eq('id_institucional', id_institucional);
+
+    if (errFallas) throw new Error(errFallas.message);
+  }
+}
+```
+
+## Error Handling
+
+### Common Error Codes
+
+| Code | Meaning | Handling |
+|------|---------|----------|
+| `PGRST116` | No rows found | User doesn't exist |
+| `23505` | Unique violation | Duplicate ID or document |
+| `23503` | Foreign key violation | Referenced record doesn't exist |
+| `42P01` | Table doesn't exist | Migration not run |
+
+### Centralized Error Handler
+
+```javascript
+export function handleSupabaseError(error) {
+  if (!error) return null;
+
+  switch (error.code) {
+    case 'PGRST116':
+      return 'Registro no encontrado';
+    case '23505':
+      return 'Ya existe un registro con ese ID o documento';
+    case '23503':
+      return 'Referencia inválida (usuario no existe)';
+    default:
+      console.error('Database error:', error);
+      return 'Error de base de datos. Contacte al administrador.';
+  }
+}
+```
+
+## Performance Optimization
+
+### Use Indexes
+
+All tables have indexes on frequently queried columns:
+
+```sql
+CREATE INDEX idx_usuarios_id_institucional ON usuarios (id_institucional);
+CREATE INDEX idx_fallas_id_inst ON fallas (id_institucional);
+CREATE INDEX idx_fallas_fecha_hora ON fallas (fecha_hora DESC);
+```
+
+### Batch Operations
+
+Always prefer bulk inserts over individual inserts:
+
+```javascript
+// ❌ Slow: N queries
+for (const user of users) {
+  await supabase.from('usuarios').insert(user);
+}
+
+// ✅ Fast: 1 query
+await supabase.from('usuarios').insert(users);
+```
+
+### Select Only Required Columns
+
+```javascript
+// ❌ Over-fetching
+const { data } = await supabase
+  .from('usuarios')
+  .select('*');
+
+// ✅ Selective
+const { data } = await supabase
+  .from('usuarios')
+  .select('id_institucional, nombre_completo, acceso');
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Admin Dashboard" icon="chart-line" href="/features/admin-dashboard">
+    Build analytics and reporting features
+  </Card>
+  
+  <Card title="CSV Upload" icon="file-csv" href="/admin/semester/data-loading">
+    Implement bulk user import
+  </Card>
+</CardGroup>

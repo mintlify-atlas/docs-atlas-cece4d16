@@ -1,0 +1,397 @@
+---
+title: 'Guía para Empleados'
+description: 'Aprende a usar el sistema de Control de Acceso como empleado de la UCC'
+icon: 'briefcase'
+---
+
+## Introducción
+
+Bienvenido al Sistema de Control de Acceso de la Universidad Cooperativa de Colombia. Como empleado, este sistema te permite registrar tu ingreso cuando **NO portas tu Tarjeta de Identificación Cooperativista (TIC)**.
+
+<Warning>
+  **Importante:** Este sistema SOLO se utiliza cuando olvidas o pierdes tu carnet físico. No registra ingresos normales con carnet.
+</Warning>
+
+## ¿Cómo usar el sistema?
+
+<Steps>
+  <Step title="Ingresa tu ID Institucional">
+    En la pantalla de inicio, ingresa tu **ID institucional** asignado por la UCC en el campo numérico.
+    
+    - Solo se permiten números
+    - Tu ID es único y está vinculado a tu perfil de empleado
+    - Presiona el botón **"INGRESAR"**
+  </Step>
+
+  <Step title="Verifica tu información de empleado">
+    El sistema mostrará tu perfil con:
+    
+    **Datos personales:**
+    - Nombre completo
+    - Documento de identidad
+    - ID institucional
+    - Estado de acceso (activo o bloqueado)
+    
+    **Información laboral:**
+    - Dependencia donde trabajas
+    - Cargo actual
+    - Tipo de contrato (indefinido, fijo, prestación de servicios)
+    - Fecha de ingreso a la UCC
+    
+    **Contador de fallas:** X/4 (fallas acumuladas de 4 permitidas)
+  </Step>
+
+  <Step title="Reporta el motivo">
+    Selecciona el motivo por el cual no portas tu TIC:
+    
+    - **📋 Olvidé mi TIC:** Olvidaste tu carnet en casa o en otro lugar
+    - **⚠️ Perdí mi TIC:** Tu carnet se extravió
+    
+    <Warning>
+      **Atención:** Reportar pérdida resulta en bloqueo inmediato por seguridad.
+    </Warning>
+  </Step>
+
+  <Step title="Confirma tu reporte">
+    Revisa tu selección y confirma el reporte.
+    
+    El sistema procesará tu ingreso y mostrará:
+    - ✅ Confirmación del reporte registrado
+    - Tu contador actualizado de fallas
+    - Advertencias si estás cerca del límite (3 fallas)
+  </Step>
+</Steps>
+
+## Información específica de empleados
+
+### Datos mostrados en tu perfil
+
+Cuando accedas al sistema como empleado, verás:
+
+<AccordionGroup>
+  <Accordion title="Información Personal" icon="user">
+    - **Nombre completo**
+    - **Documento de identidad** (cédula)
+    - **ID institucional**
+    - **Correo institucional**
+    - **Estado general:** Activo o Bloqueado
+  </Accordion>
+
+  <Accordion title="Información Laboral" icon="briefcase">
+    - **Dependencia:** Área donde trabajas (ej: Tesorería, Admisiones, Recursos Humanos)
+    - **Cargo:** Tu posición (ej: Coordinador, Asistente, Director)
+    - **Tipo de contrato:**
+      - Indefinido
+      - Fijo
+      - Prestación de servicios
+    - **Fecha de ingreso:** Cuándo comenzaste a trabajar en la UCC
+  </Accordion>
+
+  <Accordion title="Control de Fallas" icon="gauge">
+    - **Total de fallas acumuladas:** X/4
+    - **Historial de fallas:**
+      - Fecha y hora de cada reporte
+      - Motivo (olvido o pérdida)
+      - Sede donde se registró
+      - Observaciones
+  </Accordion>
+</AccordionGroup>
+
+## Sistema de fallas para empleados
+
+El sistema de fallas funciona igual para todos los usuarios:
+
+### Reglas de fallas por olvido
+
+<Steps>
+  <Step title="Fallas 1-2: Normal">
+    🟢 **Estado:** Acceso permitido
+    
+    - Puedes ingresar sin restricciones
+    - El sistema suma +1 al contador
+    - Mensaje: "Ingreso permitido. Fallas: X/4"
+  </Step>
+
+  <Step title="Falla 3: En riesgo">
+    🟡 **Estado:** Última advertencia
+    
+    - Acceso permitido, pero recibirás una advertencia
+    - **Una falla más resulta en bloqueo automático**
+    
+    **Advertencia mostrada:**
+    ```
+    ⚠️ ADVERTENCIA:
+    Tienes 3 fallas registradas.
+    Una falla más resultará en BLOQUEO automático.
+    Por favor, asegúrate de traer tu TIC en el próximo ingreso.
+    ```
+  </Step>
+
+  <Step title="Falla 4: Bloqueado">
+    🔴 **Estado:** Acceso denegado
+    
+    - Bloqueo automático del sistema
+    - No puedes ingresar a las instalaciones
+    - Debes solicitar desbloqueo con tu supervisor o Dirección
+    
+    **Mensaje mostrado:**
+    ```
+    🚫 USUARIO BLOQUEADO
+    Has alcanzado el límite de 4 fallas por olvido.
+    Dirígete a tu supervisor o a la Dirección para desbloquear tu acceso.
+    ```
+  </Step>
+</Steps>
+
+### Reporte de pérdida
+
+<Warning>
+  **Bloqueo inmediato:** Si reportas pérdida de tu TIC, el sistema te bloqueará instantáneamente por seguridad, **sin importar cuántas fallas tengas acumuladas**.
+</Warning>
+
+**¿Por qué se bloquea inmediatamente?**
+- Prevenir uso fraudulento del carnet perdido
+- Seguridad de las instalaciones
+- Protección de tu identidad
+
+**Acción requerida:**
+1. Dirígete a Recursos Humanos o tu Dirección
+2. Reporta oficialmente la pérdida
+3. Solicita un nuevo carnet
+4. Espera el desbloqueo por parte de un administrador
+
+## Empleados con múltiples roles
+
+<Info>
+  Si eres empleado Y estudiante o contratista simultáneamente, verás la información de **todos tus roles activos** en tu perfil.
+</Info>
+
+### Ejemplo: Empleado + Estudiante
+
+Tu perfil mostrará:
+
+**💼 Rol: Empleado**
+- Dependencia: Área Financiera
+- Cargo: Coordinador de Tesorería
+- Tipo de contrato: Indefinido
+- Fecha de ingreso: 15/01/2020
+
+**👨‍🎓 Rol: Estudiante**
+- Programa académico: Maestría en Administración
+- Facultad: Ciencias Económicas
+- Sede: Bogotá
+- Semestre: 3
+
+<Note>
+  **Importante:** El sistema de fallas es **único para todos tus roles**. Si acumulas 4 fallas o reportas pérdida, el bloqueo afecta tu acceso como empleado Y como estudiante.
+</Note>
+
+## Escenarios comunes para empleados
+
+<AccordionGroup>
+  <Accordion title="Olvidé mi TIC en casa" icon="home">
+    **Situación:** Saliste de casa sin tu carnet.
+    
+    **Acción:**
+    1. Al llegar a la Universidad, usa el sistema de Control de Acceso
+    2. Ingresa tu ID institucional
+    3. Selecciona motivo: **"Olvidé mi TIC"**
+    4. Confirma el reporte
+    5. Se sumará +1 a tu contador de fallas
+    6. Podrás ingresar (si no has alcanzado 4 fallas)
+    
+    **Recomendación:** Deja tu TIC en un lugar fijo (billetera, bolso de trabajo) para no olvidarla.
+  </Accordion>
+
+  <Accordion title="Perdí mi TIC en transporte público" icon="bus">
+    **Situación:** Tu carnet se perdió o fue robado.
+    
+    **Acción:**
+    1. Usa el sistema y selecciona: **"Perdí mi TIC"**
+    2. Tu acceso será **bloqueado inmediatamente**
+    3. Dirígete a Recursos Humanos o tu área administrativa
+    4. Reporta oficialmente la pérdida
+    5. Solicita un nuevo carnet
+    6. Espera el desbloqueo del administrador (generalmente al recibir el nuevo carnet)
+    
+    **Tiempo estimado:** Depende del proceso de emisión de carnets (usualmente 1-3 días hábiles).
+  </Accordion>
+
+  <Accordion title="Tengo 3 fallas acumuladas" icon="triangle-exclamation">
+    **Situación:** Estás en riesgo de bloqueo.
+    
+    **Acción:**
+    - ⚠️ **Máxima precaución:** NO olvides tu TIC en el próximo ingreso
+    - Verifica que tienes tu carnet antes de salir de casa
+    - Considera tener un recordatorio en tu teléfono
+    - Si pierdes acceso (bloqueo), deberás ir a Dirección
+    
+    **Consecuencias de una 4ta falla:**
+    - Bloqueo automático
+    - No podrás ingresar a trabajar
+    - Necesitarás aprobación administrativa para desbloqueo
+  </Accordion>
+
+  <Accordion title="Llegué bloqueado al trabajo" icon="ban">
+    **Situación:** Intentas ingresar pero el sistema indica que estás bloqueado.
+    
+    **Motivos posibles:**
+    - Alcanzaste 4 fallas por olvido
+    - Reportaste pérdida de TIC
+    - Bloqueo administrativo (poco común)
+    
+    **Acción:**
+    1. Dirígete a tu supervisor o a Recursos Humanos
+    2. Presenta tu situación y justificación
+    3. Si es por 4 olvidos, solicita desbloqueo
+    4. Si es por pérdida, solicita nuevo carnet
+    5. Un administrador con permisos desbloqueará tu acceso
+    6. Tu contador se reiniciará a 0/4
+    
+    **Prevención:** Trae tu TIC todos los días y revisa tu contador regularmente.
+  </Accordion>
+</AccordionGroup>
+
+## Empleados con permisos administrativos
+
+<Info>
+  Si eres un empleado con permisos de **administrador** del sistema (director, supervisor), tienes acceso al [Panel Administrativo](/guides/admin-guide) con funciones adicionales.
+</Info>
+
+### Roles administrativos
+
+Existen tres niveles de acceso administrativo:
+
+- **Director:** Acceso completo al panel, gestión de usuarios, reportes, carga de datos
+- **Supervisor:** Gestión de usuarios, desbloqueos, reportes
+- **Vigilancia:** Consulta de usuarios y registro de fallas
+
+### ¿Cómo sé si soy administrador?
+
+Si tienes permisos administrativos:
+- Tendrás credenciales de acceso al panel
+- Tu supervisor o el área de TI te lo habrá comunicado
+- Verás opciones adicionales en el sistema
+
+Consulta la [Guía para Administradores](/guides/admin-guide) para más información.
+
+## Proceso de desbloqueo
+
+<Steps>
+  <Step title="Contacta a tu supervisor">
+    Informa a tu supervisor inmediato o a Recursos Humanos que estás bloqueado.
+    
+    **Lleva contigo:**
+    - Tu documento de identidad
+    - Justificación de tu situación
+    - (Si aplica) Comprobante de solicitud de nuevo carnet
+  </Step>
+
+  <Step title="Justifica tu situación">
+    Explica el motivo del bloqueo:
+    
+    - **4 olvidos:** Por qué acumulaste las fallas y cómo prevendrás más
+    - **Pérdida:** Cuándo y cómo perdiste tu TIC, si ya solicitaste reposición
+  </Step>
+
+  <Step title="Espera la aprobación">
+    El administrador del sistema:
+    
+    - Revisará tu historial de fallas
+    - Evaluará tu justificación
+    - Decidirá si aprueba el desbloqueo
+    - Registrará la observación del desbloqueo
+  </Step>
+
+  <Step title="Verifica tu acceso">
+    Una vez desbloqueado:
+    
+    - Tu estado cambiará a **"Activo"**
+    - Tu contador se reiniciará a **0/4**
+    - Podrás usar el sistema normalmente
+    - El desbloqueo quedará registrado en auditoría
+  </Step>
+</Steps>
+
+## Preguntas frecuentes
+
+<AccordionGroup>
+  <Accordion title="¿Puedo usar el sistema si tengo reunión fuera de la oficina?" icon="question">
+    Este sistema es **solo para ingresos a las instalaciones de la UCC** cuando no portas tu TIC física.
+    
+    Si tienes reuniones externas, no necesitas usar este sistema.
+  </Accordion>
+
+  <Accordion title="¿Qué pasa si olvido mi TIC varios días seguidos?" icon="question">
+    Cada olvido suma +1 a tu contador de fallas:
+    
+    - Día 1: 1/4 fallas ✅
+    - Día 2: 2/4 fallas ✅
+    - Día 3: 3/4 fallas ⚠️ (advertencia)
+    - Día 4: 4/4 fallas ❌ (bloqueado)
+    
+    **Recomendación:** Establece recordatorios o rutinas para no olvidar tu carnet.
+  </Accordion>
+
+  <Accordion title="¿El contador se reinicia cada mes?" icon="question">
+    **NO.** El contador de fallas se acumula durante todo el semestre.
+    
+    Solo se reinicia en dos situaciones:
+    1. **Inicio de nuevo semestre:** Todos los contadores vuelven a 0
+    2. **Desbloqueo administrativo:** Al ser desbloqueado, tu contador vuelve a 0
+  </Accordion>
+
+  <Accordion title="¿Puedo solicitar desbloqueo si tengo una emergencia?" icon="question">
+    **SÍ.** En casos de emergencia justificada, contacta a:
+    
+    - Tu supervisor inmediato
+    - Recursos Humanos
+    - El área de Dirección
+    
+    Ellos evaluarán tu situación y pueden autorizar un desbloqueo especial.
+  </Accordion>
+
+  <Accordion title="¿Qué hago si el sistema muestra información incorrecta?" icon="question">
+    Si tu dependencia, cargo u otra información es incorrecta:
+    
+    1. Contacta a Recursos Humanos
+    2. Solicita la actualización de tus datos en el sistema
+    3. Ellos coordinarán con el área de TI para corregir la información
+    
+    **NO** dejes de reportar tu ingreso por información incorrecta.
+  </Accordion>
+</AccordionGroup>
+
+## Consejos para empleados
+
+<CardGroup cols={2}>
+  <Card title="Rutina matutina" icon="sun">
+    Incluye verificar tu TIC en tu rutina al salir de casa, junto con llaves y teléfono.
+  </Card>
+  
+  <Card title="TIC siempre visible" icon="eye">
+    Mantén tu carnet en un lugar visible de tu bolso o billetera para no olvidarlo.
+  </Card>
+  
+  <Card title="Revisa tu contador" icon="gauge">
+    Consulta regularmente cuántas fallas tienes para evitar bloqueos inesperados.
+  </Card>
+  
+  <Card title="Reporte inmediato de pérdidas" icon="shield">
+    Si pierdes tu TIC, repórtalo de inmediato para evitar uso indebido.
+  </Card>
+</CardGroup>
+
+## Soporte
+
+Si tienes problemas con el sistema:
+
+- 📧 **Email:** soporte@ucc.edu.co
+- 📱 **Teléfono:** +57 (1) XXX XXXX
+- 🏢 **Presencial:** Recursos Humanos o Dirección de tu campus
+- 👨‍💼 **Supervisor:** Contacta a tu supervisor directo
+
+---
+
+**Universidad Cooperativa de Colombia © 2026**  
+*Todos los derechos reservados*

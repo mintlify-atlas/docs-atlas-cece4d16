@@ -1,0 +1,485 @@
+---
+title: "Authentication"
+description: "Implement authentication and session management with Supabase Auth"
+---
+
+## Overview
+
+The UCC Control de Acceso system uses **institutional ID-based authentication** rather than traditional email/password login. Users authenticate by entering their university-assigned ID (e.g., "80123456").
+
+## Authentication Flow
+
+<Steps>
+  <Step title="User enters institutional ID">
+    The login screen prompts for `id_institucional` instead of username/password.
+  </Step>
+  
+  <Step title="Validate ID exists in database">
+    Query `usuarios` table to check if ID exists and user has active access.
+  </Step>
+  
+  <Step title="Check access status">
+    Verify `acceso` field is `'activo'` (not `'bloqueado'`).
+  </Step>
+  
+  <Step title="Return user data">
+    If valid, return user profile with roles and failure count.
+  </Step>
+</Steps>
+
+## Repository Pattern
+
+The system uses Clean Architecture with a repository pattern to abstract authentication logic.
+
+### Auth Repository Interface
+
+Define the contract in `domain/repositories/AuthRepository.js`:
+
+```javascript domain/repositories/AuthRepository.js
+export class AuthRepository {
+  /**
+   * Validates institutional ID and returns user if found
+   * @param {string} idInstitucional - University ID (e.g., "80123456")
+   * @returns {Promise<User|null>}
+   */
+  async validateInstitutionalId(idInstitucional) {
+    throw new Error('validateInstitutionalId() must be implemented');
+  }
+
+  /**
+   * Get complete user profile by institutional ID
+   * @param {string} idInstitucional
+   * @returns {Promise<User|null>}
+   */
+  async getUserByInstitutionalId(idInstitucional) {
+    throw new Error('getUserByInstitutionalId() must be implemented');
+  }
+}
+```
+
+### Auth Repository Implementation
+
+Implement the repository using Supabase:
+
+```javascript infrastructure/repositories/AuthRepositoryImpl.js
+import { AuthRepository } from '../../domain/repositories/AuthRepository';
+import { User } from '../../domain/entities/User';
+import { supabase } from '../../../../shared/lib/supabaseClient';
+
+export class AuthRepositoryImpl extends AuthRepository {
+
+  async validateInstitutionalId(idInstitucional) {
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('id_institucional', idInstitucional)
+      .single();
+
+    // PGRST116 = no rows found (user doesn't exist)
+    if (error || !data) return null;
+
+    return new User({
+      id:                 data.id,
+      idInstitucional:    data.id_institucional,
+      documentoIdentidad: data.documento_identidad,
+      nombreCompleto:     data.nombre_completo,
+      acceso:             data.acceso,
+      totalFallas:        data.total_fallas,
+    });
+  }
+
+  async getUserByInstitutionalId(idInstitucional) {
+    return this.validateInstitutionalId(idInstitucional);
+  }
+}
+```
+
+**Key points:**
+- `.single()` expects exactly one row (throws error if 0 or >1)
+- Check for `PGRST116` error code (no rows) to distinguish "user not found" from database errors
+- Map database columns to domain entity (`User`)
+
+## User Entity
+
+Define the User domain model:
+
+```javascript domain/entities/User.js
+export class User {
+  constructor({
+    id,
+    idInstitucional,
+    documentoIdentidad,
+    nombreCompleto,
+    acceso,
+    totalFallas
+  }) {
+    this.id = id;
+    this.idInstitucional = idInstitucional;
+    this.documentoIdentidad = documentoIdentidad;
+    this.nombreCompleto = nombreCompleto;
+    this.acceso = acceso;  // 'activo' | 'bloqueado'
+    this.totalFallas = totalFallas;
+  }
+
+  isBlocked() {
+    return this.acceso === 'bloqueado';
+  }
+
+  canAccess() {
+    return this.acceso === 'activo' && this.totalFallas < 4;
+  }
+
+  isAtRisk() {
+    return this.totalFallas === 3 && this.acceso === 'activo';
+  }
+}
+```
+
+## Login Use Case
+
+Implement the login business logic:
+
+```javascript application/use-cases/LoginUseCase.js
+import { AuthRepository } from '../../domain/repositories/AuthRepository';
+
+export class LoginUseCase {
+  constructor(authRepository) {
+    this.authRepository = authRepository;
+  }
+
+  async execute(idInstitucional) {
+    // Validate input
+    if (!idInstitucional || idInstitucional.trim() === '') {
+      throw new Error('ID institucional es requerido');
+    }
+
+    // Query database
+    const user = await this.authRepository.validateInstitutionalId(
+      idInstitucional.trim()
+    );
+
+    // User not found
+    if (!user) {
+      throw new Error('ID institucional no encontrado');
+    }
+
+    // User is blocked
+    if (user.isBlocked()) {
+      throw new Error(
+        'Acceso bloqueado. Contacte al administrador.'
+      );
+    }
+
+    // Return user data
+    return user;
+  }
+}
+```
+
+## Session Management
+
+### Storing Session Data
+
+Since Supabase Auth is not used, implement custom session storage:
+
+```javascript shared/services/SessionService.js
+export class SessionService {
+  static SESSION_KEY = 'ucc_session';
+
+  static saveSession(user) {
+    const sessionData = {
+      idInstitucional: user.idInstitucional,
+      nombreCompleto: user.nombreCompleto,
+      acceso: user.acceso,
+      totalFallas: user.totalFallas,
+      timestamp: Date.now()
+    };
+    localStorage.setItem(
+      this.SESSION_KEY, 
+      JSON.stringify(sessionData)
+    );
+  }
+
+  static getSession() {
+    const data = localStorage.getItem(this.SESSION_KEY);
+    if (!data) return null;
+
+    const session = JSON.parse(data);
+    
+    // Check if session expired (24 hours)
+    const expirationTime = 24 * 60 * 60 * 1000;
+    if (Date.now() - session.timestamp > expirationTime) {
+      this.clearSession();
+      return null;
+    }
+
+    return session;
+  }
+
+  static clearSession() {
+    localStorage.removeItem(this.SESSION_KEY);
+  }
+
+  static isAuthenticated() {
+    return this.getSession() !== null;
+  }
+}
+```
+
+### Session Validation Middleware
+
+Create a React hook for protected routes:
+
+```javascript shared/hooks/useAuth.js
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { SessionService } from '../services/SessionService';
+
+export function useAuth() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const session = SessionService.getSession();
+    
+    if (!session) {
+      navigate('/login');
+      return;
+    }
+
+    setUser(session);
+    setLoading(false);
+  }, [navigate]);
+
+  return { user, loading };
+}
+```
+
+## Protected Routes
+
+Implement route protection:
+
+```jsx src/routes/ProtectedRoute.jsx
+import { Navigate } from 'react-router-dom';
+import { SessionService } from '../shared/services/SessionService';
+
+export function ProtectedRoute({ children }) {
+  const isAuthenticated = SessionService.isAuthenticated();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
+```
+
+**Usage in router:**
+
+```jsx src/App.jsx
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ProtectedRoute } from './routes/ProtectedRoute';
+import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+```
+
+## Login Component Example
+
+```jsx presentation/pages/LoginPage.jsx
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { LoginUseCase } from '../../application/use-cases/LoginUseCase';
+import { AuthRepositoryImpl } from '../../infrastructure/repositories/AuthRepositoryImpl';
+import { SessionService } from '../../shared/services/SessionService';
+
+export default function LoginPage() {
+  const [idInstitucional, setIdInstitucional] = useState('');
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const authRepository = new AuthRepositoryImpl();
+      const loginUseCase = new LoginUseCase(authRepository);
+      
+      const user = await loginUseCase.execute(idInstitucional);
+      
+      // Save session
+      SessionService.saveSession(user);
+      
+      // Redirect to dashboard
+      navigate('/dashboard');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="login-container">
+      <h1>UCC Control de Acceso</h1>
+      
+      <form onSubmit={handleSubmit}>
+        <input
+          type="text"
+          placeholder="ID Institucional"
+          value={idInstitucional}
+          onChange={(e) => setIdInstitucional(e.target.value)}
+          required
+        />
+        
+        {error && <p className="error">{error}</p>}
+        
+        <button type="submit" disabled={loading}>
+          {loading ? 'Validando...' : 'Ingresar'}
+        </button>
+      </form>
+    </div>
+  );
+}
+```
+
+## Logout Functionality
+
+```javascript
+export function logout() {
+  SessionService.clearSession();
+  window.location.href = '/login';
+}
+```
+
+## Security Considerations
+
+<Warning>
+**Important Security Notes:**
+
+1. **No Password Storage**: This system assumes physical access control (ID card scanning). Do not store passwords in plain text.
+
+2. **Session Expiration**: Always implement session timeouts (24 hours recommended).
+
+3. **HTTPS Only**: Deploy application over HTTPS in production.
+
+4. **Input Validation**: Sanitize all user inputs to prevent SQL injection (Supabase client handles this automatically).
+
+5. **Rate Limiting**: Consider implementing rate limiting to prevent brute-force ID guessing.
+</Warning>
+
+## Testing Authentication
+
+### Manual Testing
+
+1. Insert a test user:
+
+```sql
+INSERT INTO usuarios (
+  id_institucional,
+  documento_identidad,
+  nombre_completo,
+  acceso,
+  total_fallas
+) VALUES (
+  '80123456',
+  '1234567890',
+  'Test User',
+  'activo',
+  0
+);
+```
+
+2. Try logging in with ID `80123456`
+3. Verify session is created in localStorage
+4. Check protected routes are accessible
+
+### Unit Testing
+
+```javascript __tests__/LoginUseCase.test.js
+import { LoginUseCase } from '../application/use-cases/LoginUseCase';
+import { AuthRepository } from '../domain/repositories/AuthRepository';
+import { User } from '../domain/entities/User';
+
+describe('LoginUseCase', () => {
+  let mockRepository;
+  let loginUseCase;
+
+  beforeEach(() => {
+    mockRepository = new AuthRepository();
+    loginUseCase = new LoginUseCase(mockRepository);
+  });
+
+  test('should return user when valid ID provided', async () => {
+    const mockUser = new User({
+      id: 1,
+      idInstitucional: '80123456',
+      documentoIdentidad: '1234567890',
+      nombreCompleto: 'Test User',
+      acceso: 'activo',
+      totalFallas: 0
+    });
+
+    mockRepository.validateInstitutionalId = jest.fn()
+      .mockResolvedValue(mockUser);
+
+    const result = await loginUseCase.execute('80123456');
+
+    expect(result).toEqual(mockUser);
+    expect(mockRepository.validateInstitutionalId)
+      .toHaveBeenCalledWith('80123456');
+  });
+
+  test('should throw error when user is blocked', async () => {
+    const blockedUser = new User({
+      id: 1,
+      idInstitucional: '80123456',
+      documentoIdentidad: '1234567890',
+      nombreCompleto: 'Blocked User',
+      acceso: 'bloqueado',
+      totalFallas: 4
+    });
+
+    mockRepository.validateInstitutionalId = jest.fn()
+      .mockResolvedValue(blockedUser);
+
+    await expect(loginUseCase.execute('80123456'))
+      .rejects
+      .toThrow('Acceso bloqueado');
+  });
+});
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Operations" icon="database" href="/development/backend/database-operations">
+    Learn CRUD operations and query patterns
+  </Card>
+  
+  <Card title="User Profile" icon="user" href="/features/user-profiles">
+    Implement complete user profile with roles
+  </Card>
+</CardGroup>

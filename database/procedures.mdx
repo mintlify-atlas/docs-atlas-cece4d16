@@ -1,0 +1,534 @@
+---
+title: Stored Procedures & Functions
+description: Database functions for access control, role management, and automated blocking
+---
+
+## Overview
+
+The database uses PostgreSQL functions and triggers to automate:
+
+- **Role assignment** when loading CSV files
+- **Automatic blocking** when failure count reaches 4
+- **Failure counting** after each incident
+
+All procedures are written in PL/pgSQL and included in the Supabase schema.
+
+---
+
+## Role Management Functions
+
+### fn_asignar_rol()
+
+Automatically assigns a role to a user when data is inserted into role-specific tables.
+
+```sql
+CREATE OR REPLACE FUNCTION fn_asignar_rol()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_rol_id BIGINT;
+    v_nombre_rol TEXT := TG_ARGV[0];  -- Role name passed as argument
+BEGIN
+    -- Find the role ID from the catalog
+    SELECT id INTO v_rol_id
+    FROM roles
+    WHERE nombre_rol = v_nombre_rol;
+
+    IF v_rol_id IS NULL THEN
+        RAISE EXCEPTION 'Rol "%%" no encontrado en el catálogo de roles.', v_nombre_rol;
+    END IF;
+
+    -- Insert into usuario_roles. ON CONFLICT avoids errors
+    -- if the user already had this role assigned.
+    INSERT INTO usuario_roles (id_institucional, rol_id)
+    VALUES (NEW.id_institucional, v_rol_id)
+    ON CONFLICT ON CONSTRAINT uq_usuario_rol DO NOTHING;
+
+    RETURN NEW;
+END;
+$$;
+```
+
+#### When It Executes
+
+This function is called by three triggers:
+
+```sql
+-- Student role
+CREATE TRIGGER trg_asignar_rol_estudiante
+    AFTER INSERT ON info_estudiante
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_asignar_rol('Estudiante');
+
+-- Employee role
+CREATE TRIGGER trg_asignar_rol_empleado
+    AFTER INSERT ON info_empleado
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_asignar_rol('Empleado');
+
+-- Contractor role
+CREATE TRIGGER trg_asignar_rol_contratista
+    AFTER INSERT ON info_contratista
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_asignar_rol('Contratista');
+```
+
+#### Example Flow
+
+```sql
+-- When you insert into info_estudiante:
+INSERT INTO info_estudiante (id_institucional, programa)
+VALUES ('80123456', 'Ingeniería de Sistemas');
+
+-- The trigger automatically:
+-- 1. Finds rol_id for 'Estudiante' (let's say it's 1)
+-- 2. Inserts into usuario_roles:
+--    INSERT INTO usuario_roles (id_institucional, rol_id)
+--    VALUES ('80123456', 1);
+```
+
+---
+
+### fn_revocar_rol()
+
+Automatically revokes a role when data is deleted from role-specific tables.
+
+```sql
+CREATE OR REPLACE FUNCTION fn_revocar_rol()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_rol_id BIGINT;
+    v_nombre_rol TEXT := TG_ARGV[0];
+BEGIN
+    SELECT id INTO v_rol_id
+    FROM roles
+    WHERE nombre_rol = v_nombre_rol;
+
+    IF v_rol_id IS NULL THEN
+        RAISE EXCEPTION 'Rol "%%" no encontrado en el catálogo de roles.', v_nombre_rol;
+    END IF;
+
+    DELETE FROM usuario_roles
+    WHERE id_institucional = OLD.id_institucional
+      AND rol_id = v_rol_id;
+
+    RETURN OLD;
+END;
+$$;
+```
+
+#### When It Executes
+
+```sql
+CREATE TRIGGER trg_revocar_rol_estudiante
+    AFTER DELETE ON info_estudiante
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_revocar_rol('Estudiante');
+
+CREATE TRIGGER trg_revocar_rol_empleado
+    AFTER DELETE ON info_empleado
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_revocar_rol('Empleado');
+
+CREATE TRIGGER trg_revocar_rol_contratista
+    AFTER DELETE ON info_contratista
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_revocar_rol('Contratista');
+```
+
+#### Example: Semester Cleanup
+
+```sql
+-- Delete all student data for new semester
+DELETE FROM info_estudiante;
+
+-- For each deleted row, the trigger:
+-- 1. Finds rol_id for 'Estudiante'
+-- 2. Deletes from usuario_roles:
+--    DELETE FROM usuario_roles 
+--    WHERE id_institucional = '80123456' AND rol_id = 1;
+```
+
+<Warning>
+  **Never use TRUNCATE for semester cleanup!**
+  
+  `TRUNCATE` doesn't fire row-level triggers, so roles won't be revoked automatically. Always use `DELETE FROM` instead.
+</Warning>
+
+---
+
+## Failure Tracking Function
+
+### fn_actualizar_fallas()
+
+Recalculates the failure count and automatically blocks users who reach 4 failures.
+
+```sql
+CREATE OR REPLACE FUNCTION fn_actualizar_fallas()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_id_inst   VARCHAR(20);
+    v_total     INT;
+BEGIN
+    -- Get the institutional ID from the affected record
+    v_id_inst := CASE WHEN TG_OP = 'DELETE' THEN OLD.id_institucional
+                                             ELSE NEW.id_institucional END;
+
+    -- Count current failures for this user
+    SELECT COUNT(*) INTO v_total
+    FROM fallas
+    WHERE id_institucional = v_id_inst;
+
+    -- Update counter and block automatically if reaching 4
+    UPDATE usuarios
+    SET total_fallas = v_total,
+        acceso       = CASE WHEN v_total >= 4 THEN 'bloqueado' ELSE acceso END
+    WHERE id_institucional = v_id_inst;
+
+    RETURN NULL;
+END;
+$$;
+```
+
+#### When It Executes
+
+```sql
+-- After inserting a failure
+CREATE TRIGGER trg_fallas_insert
+    AFTER INSERT ON fallas
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_actualizar_fallas();
+
+-- After deleting a failure (for corrections)
+CREATE TRIGGER trg_fallas_delete
+    AFTER DELETE ON fallas
+    FOR EACH ROW
+    EXECUTE FUNCTION fn_actualizar_fallas();
+```
+
+#### Example Flow: Registering Failures
+
+**First Failure:**
+```sql
+INSERT INTO fallas (id_institucional, motivo)
+VALUES ('80123456', 'olvido');
+
+-- Trigger executes:
+-- 1. Counts failures: 1
+-- 2. Updates usuarios:
+--    UPDATE usuarios 
+--    SET total_fallas = 1, acceso = 'activo'
+--    WHERE id_institucional = '80123456';
+```
+
+**Fourth Failure (Automatic Block):**
+```sql
+INSERT INTO fallas (id_institucional, motivo)
+VALUES ('80123456', 'olvido');
+
+-- Trigger executes:
+-- 1. Counts failures: 4
+-- 2. Updates usuarios:
+--    UPDATE usuarios 
+--    SET total_fallas = 4, acceso = 'bloqueado'
+--    WHERE id_institucional = '80123456';
+```
+
+---
+
+## Application-Level Procedures
+
+These are NOT stored in the database but implemented in your backend API.
+
+### Register Entry Without Card
+
+Logic for handling users who forgot or lost their ID card:
+
+```typescript
+// Pseudocode - implement in your backend
+async function registrarIngresoSinCarnet(
+  id_institucional: string,
+  motivo: 'olvido' | 'perdida'
+) {
+  // 1. Check if user is already blocked
+  const usuario = await db.usuarios.findUnique({
+    where: { id_institucional }
+  });
+
+  if (usuario.acceso === 'bloqueado') {
+    return {
+      permitido: false,
+      mensaje: 'Usuario bloqueado. Debe dirigirse a la Dirección.'
+    };
+  }
+
+  // 2. Handle based on reason
+  if (motivo === 'perdida') {
+    // Lost card = immediate block
+    await db.usuarios.update({
+      where: { id_institucional },
+      data: { acceso: 'bloqueado' }
+    });
+
+    await db.fallas.create({
+      data: { id_institucional, motivo: 'perdida' }
+    });
+
+    return {
+      permitido: false,
+      mensaje: 'Tarjeta reportada como perdida. Usuario bloqueado.'
+    };
+  }
+
+  // 3. Forgot card = increment counter
+  await db.fallas.create({
+    data: { id_institucional, motivo: 'olvido' }
+  });
+
+  // The trigger automatically updates total_fallas and blocks if needed
+  const usuarioActualizado = await db.usuarios.findUnique({
+    where: { id_institucional }
+  });
+
+  if (usuarioActualizado.acceso === 'bloqueado') {
+    return {
+      permitido: false,
+      mensaje: `Límite alcanzado. Fallas: ${usuarioActualizado.total_fallas}/4. Usuario bloqueado.`
+    };
+  }
+
+  return {
+    permitido: true,
+    mensaje: `Ingreso permitido. Fallas: ${usuarioActualizado.total_fallas}/4.`,
+    advertencia: usuarioActualizado.total_fallas >= 3 ? 'Próxima falla resultará en bloqueo.' : null
+  };
+}
+```
+
+---
+
+### Unblock User
+
+Administrators can unblock users and reset their failure count:
+
+```typescript
+async function desbloquearUsuario(
+  id_institucional: string,
+  admin_id: string,
+  observacion: string
+) {
+  // 1. Update user status
+  await db.usuarios.update({
+    where: { id_institucional },
+    data: {
+      acceso: 'activo',
+      total_fallas: 0  // Reset counter
+    }
+  });
+
+  // 2. Clear all failures
+  await db.fallas.deleteMany({
+    where: { id_institucional }
+  });
+
+  // 3. Log the action for audit
+  await db.auditoria.create({
+    data: {
+      accion: 'desbloqueo_usuario',
+      usuario_afectado: id_institucional,
+      admin_id: admin_id,
+      observacion: observacion,
+      fecha_hora: new Date()
+    }
+  });
+
+  return {
+    success: true,
+    mensaje: 'Usuario desbloqueado correctamente.'
+  };
+}
+```
+
+---
+
+### Get Complete User Information
+
+Retrieve user with all roles and role-specific information:
+
+```sql
+-- Main user info with roles
+WITH user_roles AS (
+  SELECT 
+    ur.id_institucional,
+    STRING_AGG(r.nombre_rol, ', ' ORDER BY r.nombre_rol) AS roles
+  FROM usuario_roles ur
+  JOIN roles r ON r.id = ur.rol_id
+  WHERE ur.id_institucional = $1
+  GROUP BY ur.id_institucional
+)
+SELECT 
+  u.*,
+  COALESCE(ur.roles, 'Sin roles') AS roles
+FROM usuarios u
+LEFT JOIN user_roles ur ON ur.id_institucional = u.id_institucional
+WHERE u.id_institucional = $1;
+
+-- Student info (if applicable)
+SELECT programa
+FROM info_estudiante
+WHERE id_institucional = $1;
+
+-- Employee info (if applicable)
+SELECT cargo, dependencia
+FROM info_empleado
+WHERE id_institucional = $1;
+
+-- Contractor info (if applicable)
+SELECT empresa
+FROM info_contratista
+WHERE id_institucional = $1;
+
+-- Last 10 failures
+SELECT fecha_hora, motivo
+FROM fallas
+WHERE id_institucional = $1
+ORDER BY fecha_hora DESC
+LIMIT 10;
+```
+
+---
+
+### Prepare New Semester
+
+Cleanup procedure for transitioning between semesters:
+
+```typescript
+async function prepararNuevoSemestre(
+  admin_id: string,
+  nuevo_semestre: string
+) {
+  // 1. Mark current semester as inactive
+  await db.semestres.updateMany({
+    where: { activo: true },
+    data: { activo: false }
+  });
+
+  // 2. Create new semester
+  await db.semestres.create({
+    data: {
+      nombre: nuevo_semestre,
+      fecha_inicio: new Date('2026-06-15'),
+      fecha_fin: new Date('2026-12-15'),
+      activo: true
+    }
+  });
+
+  // 3. Delete role-specific data (triggers will revoke roles)
+  await db.info_estudiante.deleteMany({});
+  await db.info_empleado.deleteMany({});
+  await db.info_contratista.deleteMany({});
+
+  // 4. Clear failures
+  await db.fallas.deleteMany({});
+
+  // 5. Reset all users to active status
+  await db.usuarios.updateMany({
+    data: {
+      acceso: 'activo',
+      total_fallas: 0
+    }
+  });
+
+  // 6. Log action
+  await db.auditoria.create({
+    data: {
+      accion: 'preparar_nuevo_semestre',
+      admin_id: admin_id,
+      observacion: `Semestre ${nuevo_semestre} preparado`,
+      fecha_hora: new Date()
+    }
+  });
+
+  return {
+    success: true,
+    mensaje: `Base de datos preparada para el semestre ${nuevo_semestre}`
+  };
+}
+```
+
+<Warning>
+  **IMPORTANT:** This procedure deletes ALL data except:
+  - The `usuarios` table (institutional IDs and names are preserved)
+  - The `roles` catalog
+  - The `semestres` history
+  
+  Always export reports before running this procedure!
+</Warning>
+
+---
+
+## Verification Queries
+
+### Check Role Assignments
+
+```sql
+-- Verify all users have correct roles
+SELECT
+    u.id_institucional,
+    u.nombre_completo,
+    STRING_AGG(r.nombre_rol, ', ' ORDER BY r.nombre_rol) AS roles,
+    CASE 
+      WHEN EXISTS (SELECT 1 FROM info_estudiante WHERE id_institucional = u.id_institucional) THEN '✓' ELSE '✗' 
+    END AS tiene_info_estudiante,
+    CASE 
+      WHEN EXISTS (SELECT 1 FROM info_empleado WHERE id_institucional = u.id_institucional) THEN '✓' ELSE '✗' 
+    END AS tiene_info_empleado,
+    CASE 
+      WHEN EXISTS (SELECT 1 FROM info_contratista WHERE id_institucional = u.id_institucional) THEN '✓' ELSE '✗' 
+    END AS tiene_info_contratista
+FROM usuarios u
+LEFT JOIN usuario_roles ur ON ur.id_institucional = u.id_institucional
+LEFT JOIN roles r ON r.id = ur.rol_id
+GROUP BY u.id_institucional, u.nombre_completo
+ORDER BY u.id_institucional;
+```
+
+### Find Orphaned Roles
+
+```sql
+-- Users with roles but no corresponding info table entry
+SELECT 
+    ur.id_institucional,
+    r.nombre_rol,
+    'Missing info table' AS problema
+FROM usuario_roles ur
+JOIN roles r ON r.id = ur.rol_id
+WHERE 
+    (r.nombre_rol = 'Estudiante' AND NOT EXISTS (
+        SELECT 1 FROM info_estudiante WHERE id_institucional = ur.id_institucional
+    ))
+    OR (r.nombre_rol = 'Empleado' AND NOT EXISTS (
+        SELECT 1 FROM info_empleado WHERE id_institucional = ur.id_institucional
+    ))
+    OR (r.nombre_rol = 'Contratista' AND NOT EXISTS (
+        SELECT 1 FROM info_contratista WHERE id_institucional = ur.id_institucional
+    ));
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Data Loading" icon="upload" href="/database/data-loading">
+    CSV format and bulk loading procedures
+  </Card>
+  <Card title="Schema Overview" icon="diagram-project" href="/database/schema">
+    Complete ER diagram and relationships
+  </Card>
+</CardGroup>

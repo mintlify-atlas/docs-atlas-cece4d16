@@ -1,0 +1,540 @@
+---
+title: Data Loading
+description: CSV format specification and bulk data loading process for semester management
+---
+
+## Overview
+
+The system supports bulk data loading from CSV files for semester enrollment updates. Each department (Academic Registry, HR, Contracts) can independently load their CSV files, and roles are assigned automatically via database triggers.
+
+---
+
+## CSV Format Specification
+
+### Complete Example
+
+The `ejemplo_carga_semestral.csv` file demonstrates the expected format:
+
+```csv
+id_institucional,documento_identidad,nombre_completo,correo_institucional,rol,programa_academico,facultad,semestre,dependencia,cargo,empresa_proveedora,nit_proveedor,area_asignada,sede
+80123456,1001234567,Juan Pérez Gómez,juan.perez@ucc.edu.co,Estudiante,Ingeniería de Sistemas,Facultad de Ingeniería,8,,,,,Bogotá
+80234567,1001234568,María López Rodríguez,maria.lopez@ucc.edu.co,Estudiante,Derecho,Facultad de Derecho,6,,,,,Bogotá
+80345678,1001234569,Carlos Martínez Sánchez,carlos.martinez@ucc.edu.co,Estudiante|Empleado,Administración de Empresas,Facultad de Ciencias Económicas,10,Biblioteca,Auxiliar de Biblioteca,,,Bogotá
+80456789,1001234570,Ana Rodríguez Torres,ana.rodriguez@ucc.edu.co,Estudiante,Psicología,Facultad de Ciencias Sociales,4,,,,,Bogotá
+80567890,1001234571,Luis Gómez Castro,luis.gomez@ucc.edu.co,Empleado,,,Tesorería,Coordinador de Caja,,,Bogotá
+80678901,1001234572,Sandra Morales Díaz,sandra.morales@ucc.edu.co,Contratista,,,,,Sistemas Avanzados SAS,900123456,Soporte Técnico,Bogotá
+```
+
+### Column Definitions
+
+| Column | Required | Description | Example |
+|--------|----------|-------------|------|
+| `id_institucional` | ✅ Yes | UCC-assigned institutional ID | `80123456` |
+| `documento_identidad` | ✅ Yes | National ID card number | `1001234567` |
+| `nombre_completo` | ✅ Yes | Full name | `Juan Pérez Gómez` |
+| `correo_institucional` | ✅ Yes | Institutional email | `juan.perez@ucc.edu.co` |
+| `rol` | ✅ Yes | Role(s) - pipe-separated for multiple | `Estudiante` or `Estudiante\|Empleado` |
+| `programa_academico` | If Student | Academic program name | `Ingeniería de Sistemas` |
+| `facultad` | If Student | Faculty name | `Facultad de Ingeniería` |
+| `semestre` | If Student | Current semester number | `8` |
+| `dependencia` | If Employee | Department | `Tesorería` |
+| `cargo` | If Employee | Job title | `Coordinador de Caja` |
+| `empresa_proveedora` | If Contractor | Company name | `Sistemas Avanzados SAS` |
+| `nit_proveedor` | If Contractor | Company tax ID | `900123456` |
+| `area_asignada` | If Contractor | Assigned area | `Soporte Técnico` |
+| `sede` | ✅ Yes | Campus location | `Bogotá` |
+
+### Multi-Role Format
+
+Use the pipe character (`|`) to assign multiple roles:
+
+```csv
+id_institucional,nombre_completo,rol,programa_academico,cargo
+80345678,Carlos Martínez,Estudiante|Empleado,Administración,Auxiliar
+```
+
+This user will have:
+- **Student** role with program "Administración"
+- **Employee** role with position "Auxiliar"
+
+---
+
+## Loading Process
+
+### Step 1: Load Users Table
+
+First, load all users regardless of role:
+
+```sql
+-- Import to usuarios table
+COPY usuarios (id_institucional, documento_identidad, nombre_completo)
+FROM '/path/to/usuarios.csv'
+DELIMITER ','
+CSV HEADER;
+```
+
+**Or using INSERT:**
+
+```sql
+INSERT INTO usuarios (id_institucional, documento_identidad, nombre_completo)
+VALUES
+  ('80123456', '1001234567', 'Juan Pérez Gómez'),
+  ('80234567', '1001234568', 'María López Rodríguez'),
+  ('80345678', '1001234569', 'Carlos Martínez Sánchez')
+ON CONFLICT (id_institucional) DO UPDATE
+  SET documento_identidad = EXCLUDED.documento_identidad,
+      nombre_completo = EXCLUDED.nombre_completo;
+```
+
+### Step 2: Load Role-Specific Information
+
+#### Students
+
+```sql
+-- Import student data
+COPY info_estudiante (id_institucional, programa)
+FROM '/path/to/estudiantes.csv'
+DELIMITER ','
+CSV HEADER;
+```
+
+**The trigger automatically:**
+1. Finds the `Estudiante` role ID
+2. Creates a record in `usuario_roles`
+3. Assigns the Student role to each user
+
+#### Employees
+
+```sql
+-- Import employee data
+COPY info_empleado (id_institucional, cargo, dependencia)
+FROM '/path/to/empleados.csv'
+DELIMITER ','
+CSV HEADER;
+```
+
+**The trigger automatically assigns the `Empleado` role.**
+
+#### Contractors
+
+```sql
+-- Import contractor data
+COPY info_contratista (id_institucional, empresa)
+FROM '/path/to/contratistas.csv'
+DELIMITER ','
+CSV HEADER;
+```
+
+**The trigger automatically assigns the `Contratista` role.**
+
+---
+
+## Application-Level Loading Script
+
+If you can't use PostgreSQL's `COPY` command directly, implement loading in your backend:
+
+### Node.js Example (Prisma)
+
+```typescript
+import { PrismaClient } from '@prisma/client';
+import fs from 'fs';
+import csv from 'csv-parser';
+
+const prisma = new PrismaClient();
+
+interface CSVRow {
+  id_institucional: string;
+  documento_identidad: string;
+  nombre_completo: string;
+  correo_institucional: string;
+  rol: string;
+  programa_academico?: string;
+  facultad?: string;
+  semestre?: string;
+  dependencia?: string;
+  cargo?: string;
+  empresa_proveedora?: string;
+  nit_proveedor?: string;
+  area_asignada?: string;
+  sede: string;
+}
+
+async function cargarCSV(filePath: string) {
+  const rows: CSVRow[] = [];
+
+  // Read CSV file
+  await new Promise((resolve, reject) => {
+    fs.createReadStream(filePath)
+      .pipe(csv())
+      .on('data', (row) => rows.push(row))
+      .on('end', resolve)
+      .on('error', reject);
+  });
+
+  console.log(`Loaded ${rows.length} rows from CSV`);
+
+  // Process each row
+  for (const row of rows) {
+    try {
+      // 1. Create or update user
+      await prisma.usuarios.upsert({
+        where: { id_institucional: row.id_institucional },
+        update: {
+          documento_identidad: row.documento_identidad,
+          nombre_completo: row.nombre_completo,
+        },
+        create: {
+          id_institucional: row.id_institucional,
+          documento_identidad: row.documento_identidad,
+          nombre_completo: row.nombre_completo,
+          acceso: 'activo',
+          total_fallas: 0,
+        },
+      });
+
+      // 2. Parse roles (can be pipe-separated)
+      const roles = row.rol.split('|').map(r => r.trim());
+
+      // 3. Insert role-specific information
+      for (const role of roles) {
+        if (role === 'Estudiante' && row.programa_academico) {
+          await prisma.info_estudiante.upsert({
+            where: { id_institucional: row.id_institucional },
+            update: { programa: row.programa_academico },
+            create: {
+              id_institucional: row.id_institucional,
+              programa: row.programa_academico,
+            },
+          });
+          // Trigger assigns the Estudiante role automatically
+        }
+
+        if (role === 'Empleado' && row.cargo && row.dependencia) {
+          await prisma.info_empleado.upsert({
+            where: { id_institucional: row.id_institucional },
+            update: {
+              cargo: row.cargo,
+              dependencia: row.dependencia,
+            },
+            create: {
+              id_institucional: row.id_institucional,
+              cargo: row.cargo,
+              dependencia: row.dependencia,
+            },
+          });
+          // Trigger assigns the Empleado role automatically
+        }
+
+        if (role === 'Contratista' && row.empresa_proveedora) {
+          await prisma.info_contratista.upsert({
+            where: { id_institucional: row.id_institucional },
+            update: { empresa: row.empresa_proveedora },
+            create: {
+              id_institucional: row.id_institucional,
+              empresa: row.empresa_proveedora,
+            },
+          });
+          // Trigger assigns the Contratista role automatically
+        }
+      }
+
+      console.log(`✓ Processed ${row.id_institucional}`);
+    } catch (error) {
+      console.error(`✗ Error processing ${row.id_institucional}:`, error);
+    }
+  }
+
+  console.log('CSV loading complete!');
+}
+
+// Usage
+cargarCSV('./ejemplo_carga_semestral.csv')
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+```
+
+---
+
+## Semester Management
+
+### End of Semester Workflow
+
+#### 1. Export Current Data
+
+Before cleaning the database, export all data for historical records:
+
+```sql
+-- Export all users with roles
+COPY (
+  SELECT 
+    u.id_institucional,
+    u.nombre_completo,
+    u.documento_identidad,
+    u.acceso,
+    u.total_fallas,
+    STRING_AGG(r.nombre_rol, '|') AS roles
+  FROM usuarios u
+  LEFT JOIN usuario_roles ur ON ur.id_institucional = u.id_institucional
+  LEFT JOIN roles r ON r.id = ur.rol_id
+  GROUP BY u.id_institucional, u.nombre_completo, u.documento_identidad, u.acceso, u.total_fallas
+) TO '/exports/usuarios_2026-1.csv' CSV HEADER;
+
+-- Export all failures
+COPY (
+  SELECT 
+    f.id_institucional,
+    u.nombre_completo,
+    f.fecha_hora,
+    f.motivo
+  FROM fallas f
+  JOIN usuarios u ON u.id_institucional = f.id_institucional
+  ORDER BY f.fecha_hora DESC
+) TO '/exports/fallas_2026-1.csv' CSV HEADER;
+```
+
+#### 2. Mark Semester as Inactive
+
+```sql
+UPDATE semestres
+SET activo = false
+WHERE nombre = '2026-1';
+```
+
+#### 3. Clean Role-Specific Data
+
+```sql
+-- Delete all role-specific data
+-- Triggers will automatically revoke roles
+DELETE FROM info_estudiante;
+DELETE FROM info_empleado;
+DELETE FROM info_contratista;
+```
+
+<Warning>
+  **Use DELETE, not TRUNCATE!**
+  
+  `TRUNCATE` doesn't fire triggers, so roles won't be revoked. Always use `DELETE FROM` to ensure triggers execute properly.
+</Warning>
+
+#### 4. Clear Failures
+
+```sql
+-- Remove all failure records
+DELETE FROM fallas;
+
+-- Reset all user statuses
+UPDATE usuarios
+SET acceso = 'activo',
+    total_fallas = 0;
+```
+
+#### 5. Create New Semester
+
+```sql
+INSERT INTO semestres (nombre, fecha_inicio, fecha_fin, activo)
+VALUES ('2026-2', '2026-06-15', '2026-12-15', true);
+```
+
+#### 6. Load New Semester Data
+
+Load the CSV files for the new semester as described in the **Loading Process** section above.
+
+---
+
+## Verification After Loading
+
+### Check Role Assignments
+
+```sql
+SELECT
+    u.id_institucional,
+    u.nombre_completo,
+    STRING_AGG(r.nombre_rol, ', ' ORDER BY r.nombre_rol) AS roles
+FROM usuarios u
+LEFT JOIN usuario_roles ur ON ur.id_institucional = u.id_institucional
+LEFT JOIN roles r ON r.id = ur.rol_id
+GROUP BY u.id_institucional, u.nombre_completo
+ORDER BY u.id_institucional;
+```
+
+**Expected output:**
+```
+id_institucional | nombre_completo              | roles
+-----------------+------------------------------+------------------------
+80123456         | Juan Pérez Gómez             | Estudiante
+80234567         | María López Rodríguez        | Estudiante
+80345678         | Carlos Martínez Sánchez      | Empleado, Estudiante
+80456789         | Ana Rodríguez Torres         | Estudiante
+80567890         | Luis Gómez Castro            | Empleado
+80678901         | Sandra Morales Díaz          | Contratista
+```
+
+### Verify Multi-Role Users
+
+```sql
+SELECT 
+    u.id_institucional,
+    u.nombre_completo,
+    COUNT(ur.rol_id) AS num_roles,
+    STRING_AGG(r.nombre_rol, ', ') AS roles
+FROM usuarios u
+JOIN usuario_roles ur ON ur.id_institucional = u.id_institucional
+JOIN roles r ON r.id = ur.rol_id
+GROUP BY u.id_institucional, u.nombre_completo
+HAVING COUNT(ur.rol_id) > 1;
+```
+
+### Count Users by Role
+
+```sql
+SELECT 
+    r.nombre_rol,
+    COUNT(ur.id_institucional) AS total
+FROM roles r
+LEFT JOIN usuario_roles ur ON ur.rol_id = r.id
+GROUP BY r.nombre_rol;
+```
+
+**Expected output:**
+```
+nombre_rol   | total
+-------------+-------
+Estudiante   | 150
+Empleado     | 45
+Contratista  | 12
+```
+
+---
+
+## Common Issues and Solutions
+
+### Issue: Roles Not Assigned
+
+**Symptom:** Users appear in `usuarios` but not in `usuario_roles`.
+
+**Cause:** Role-specific info tables were not loaded.
+
+**Solution:** Ensure you load `info_estudiante`, `info_empleado`, or `info_contratista` after loading `usuarios`.
+
+```sql
+-- Check for users without roles
+SELECT u.id_institucional, u.nombre_completo
+FROM usuarios u
+WHERE NOT EXISTS (
+  SELECT 1 FROM usuario_roles ur 
+  WHERE ur.id_institucional = u.id_institucional
+);
+```
+
+---
+
+### Issue: Duplicate Role Assignments
+
+**Symptom:** Same user-role combination appears multiple times.
+
+**Cause:** CSV loaded multiple times without cleanup.
+
+**Solution:** The `UNIQUE` constraint on `(id_institucional, rol_id)` prevents duplicates. If you see duplicates, check your constraint:
+
+```sql
+-- Verify constraint exists
+SELECT conname
+FROM pg_constraint
+WHERE conname = 'uq_usuario_rol';
+
+-- Add if missing
+ALTER TABLE usuario_roles
+ADD CONSTRAINT uq_usuario_rol UNIQUE (id_institucional, rol_id);
+```
+
+---
+
+### Issue: Orphaned Roles After Deletion
+
+**Symptom:** User deleted from `info_estudiante` but still has `Estudiante` role.
+
+**Cause:** Used `TRUNCATE` instead of `DELETE`.
+
+**Solution:** Always use `DELETE FROM` to trigger automatic role revocation:
+
+```sql
+-- ❌ WRONG
+TRUNCATE info_estudiante;
+
+-- ✅ CORRECT
+DELETE FROM info_estudiante;
+```
+
+---
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="1. Always Test with Sample Data First">
+    Before loading a full semester CSV:
+    1. Create a test CSV with 5-10 users
+    2. Load into a test database
+    3. Verify role assignments
+    4. Check multi-role users work correctly
+    5. Then proceed with full load
+  </Accordion>
+
+  <Accordion title="2. Export Before Every Major Change">
+    Always export data before:
+    - Semester cleanup
+    - Large data imports
+    - Database migrations
+    
+    Keep exports in a version-controlled folder with clear naming:
+    ```
+    exports/
+      2026-1/
+        usuarios_2026-1_final.csv
+        fallas_2026-1_final.csv
+        roles_2026-1_final.csv
+    ```
+  </Accordion>
+
+  <Accordion title="3. Use Database Transactions">
+    Wrap large imports in transactions:
+    ```sql
+    BEGIN;
+    
+    DELETE FROM info_estudiante;
+    COPY info_estudiante FROM 'students.csv' CSV HEADER;
+    
+    -- Verify count matches expectations
+    SELECT COUNT(*) FROM info_estudiante;
+    
+    -- If good:
+    COMMIT;
+    -- If bad:
+    -- ROLLBACK;
+    ```
+  </Accordion>
+
+  <Accordion title="4. Validate CSV Before Loading">
+    Check your CSV for common issues:
+    - Required fields are not empty
+    - `id_institucional` format is correct
+    - No duplicate IDs
+    - Role names match exactly: `Estudiante`, `Empleado`, `Contratista`
+    - Multi-role separator is `|` not `,` or `;`
+  </Accordion>
+</AccordionGroup>
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Schema Overview" icon="diagram-project" href="/database/schema">
+    Understand the database structure
+  </Card>
+  <Card title="Stored Procedures" icon="code" href="/database/procedures">
+    Learn about automatic triggers and functions
+  </Card>
+</CardGroup>

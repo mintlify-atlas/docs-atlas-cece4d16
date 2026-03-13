@@ -1,0 +1,279 @@
+---
+title: "Supabase Setup"
+description: "Configure Supabase database for the UCC Control de Acceso system"
+---
+
+## Overview
+
+The UCC Control de Acceso system uses Supabase (PostgreSQL) as its database backend. This guide walks you through creating a Supabase project, running migrations, and configuring your environment.
+
+## Prerequisites
+
+- A Supabase account ([sign up here](https://supabase.com))
+- Node.js installed locally
+- Git access to the project repository
+
+## Creating a Supabase Project
+
+### Step 1: Create New Project
+
+1. Log in to [Supabase Dashboard](https://app.supabase.com)
+2. Click **New Project**
+3. Enter project details:
+   - **Name**: `ucc-control-acceso`
+   - **Database Password**: Use a strong password (save this!)
+   - **Region**: Choose closest to your location
+   - **Pricing Plan**: Free tier is sufficient for development
+
+4. Click **Create new project** and wait 2-3 minutes for provisioning
+
+### Step 2: Get API Credentials
+
+Once your project is ready:
+
+1. Navigate to **Settings** → **API**
+2. Copy the following values:
+   - **Project URL**: `https://your-project.supabase.co`
+   - **anon/public key**: `eyJhbGci...` (long JWT token)
+
+<Note>
+The `anon` key is safe to use in client-side code. Never expose the `service_role` key.
+</Note>
+
+## Database Schema
+
+The system uses the following PostgreSQL tables:
+
+### Core Tables
+
+| Table | Description |
+|-------|-------------|
+| `usuarios` | Main user table with institutional ID and access status |
+| `roles` | Role catalog: Estudiante, Empleado, Contratista |
+| `usuario_roles` | Many-to-many relationship between users and roles |
+| `info_estudiante` | Academic program information for students |
+| `info_empleado` | Department and position for employees |
+| `info_contratista` | Company information for contractors |
+| `fallas` | Failure/incident log (forgot ID card, lost card) |
+| `semestres` | Academic semester management |
+
+## Running SQL Migrations
+
+### Execute Scripts in Order
+
+The `database/supabase/` directory contains SQL files that must be run in sequence:
+
+```bash
+database/supabase/
+├── 01_usuarios.sql         # Users table + ENUM types
+├── 02_roles.sql            # Roles catalog
+├── 03_info_estudiante.sql  # Student information
+├── 04_info_empleado.sql    # Employee information
+├── 05_info_contratista.sql # Contractor information
+├── 06_triggers_roles.sql   # Auto-assign role triggers
+├── 07_fallas.sql           # Failures table + auto-block trigger
+├── 08_rls_policies.sql     # Row Level Security policies
+└── 09_semestres.sql        # Semester management
+```
+
+### Method 1: SQL Editor (Recommended for First Setup)
+
+1. Open **SQL Editor** in Supabase Dashboard
+2. Create a new query
+3. Copy content from `01_usuarios.sql`
+4. Click **Run** (or press `Cmd+Enter`)
+5. Repeat for files `02` through `09`
+
+<Warning>
+**Important**: Scripts must be executed in numerical order due to foreign key dependencies.
+</Warning>
+
+### Method 2: Command Line (Advanced)
+
+If you have `psql` installed:
+
+```bash
+# Get connection string from Supabase Dashboard → Settings → Database
+export DATABASE_URL="postgresql://postgres:[password]@[host]:5432/postgres"
+
+psql $DATABASE_URL -f database/supabase/01_usuarios.sql
+psql $DATABASE_URL -f database/supabase/02_roles.sql
+# ... continue for all files
+```
+
+## Example: Creating Users Table
+
+Here's what the first migration creates:
+
+```sql database/supabase/01_usuarios.sql
+-- ENUM for access control
+DROP TYPE IF EXISTS estado_de_acceso CASCADE;
+CREATE TYPE estado_de_acceso AS ENUM ('activo', 'bloqueado');
+
+-- Main users table
+CREATE TABLE usuarios (
+    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_institucional    VARCHAR(20)       NOT NULL UNIQUE,
+    documento_identidad VARCHAR(20)       NOT NULL UNIQUE,
+    nombre_completo     VARCHAR(150)      NOT NULL,
+    acceso              estado_de_acceso  NOT NULL DEFAULT 'activo',
+    total_fallas        INT               NOT NULL DEFAULT 0
+);
+
+-- Indexes for fast lookups
+CREATE INDEX idx_usuarios_id_institucional ON usuarios (id_institucional);
+CREATE INDEX idx_usuarios_documento        ON usuarios (documento_identidad);
+CREATE INDEX idx_usuarios_acceso           ON usuarios (acceso);
+```
+
+**Key fields:**
+- `id_institucional`: University-assigned ID (e.g., "80123456")
+- `acceso`: Current access status (`activo` or `bloqueado`)
+- `total_fallas`: Counter for ID card failures (auto-blocks at 4)
+
+## Environment Configuration
+
+### Frontend Configuration
+
+Create `src/shared/lib/supabaseClient.js`:
+
+```javascript src/shared/lib/supabaseClient.js
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+```
+
+### Environment Variables
+
+Create a `.env.local` file in your project root:
+
+```bash .env.local
+# Supabase Configuration
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGci...
+
+# API Backend URL (if using separate backend)
+VITE_API_URL=http://localhost:3000
+```
+
+<Warning>
+**Never commit `.env.local` to git!** Add it to your `.gitignore` file.
+</Warning>
+
+## Row Level Security (RLS)
+
+Supabase enforces Row Level Security by default. The `08_rls_policies.sql` script enables public access for the application:
+
+```sql database/supabase/08_rls_policies.sql
+-- Enable RLS
+ALTER TABLE usuarios ENABLE ROW LEVEL SECURITY;
+
+-- Allow public read access
+CREATE POLICY "usuarios: lectura publica"
+  ON usuarios FOR SELECT
+  USING (true);
+
+-- Allow public insert (for CSV uploads)
+CREATE POLICY "usuarios: insertar"
+  ON usuarios FOR INSERT
+  WITH CHECK (true);
+
+-- Allow public update (for access control)
+CREATE POLICY "usuarios: actualizar"
+  ON usuarios FOR UPDATE
+  USING (true);
+```
+
+<Note>
+These permissive policies are suitable for an internal university system. For public-facing applications, implement more restrictive policies based on authentication.
+</Note>
+
+## Verifying Installation
+
+### Check Tables Created
+
+Run this query in SQL Editor:
+
+```sql
+SELECT table_name 
+FROM information_schema.tables 
+WHERE table_schema = 'public' 
+ORDER BY table_name;
+```
+
+**Expected output:**
+- `fallas`
+- `info_contratista`
+- `info_empleado`
+- `info_estudiante`
+- `roles`
+- `semestres`
+- `usuario_roles`
+- `usuarios`
+
+### Check Initial Data
+
+The `02_roles.sql` script inserts three default roles:
+
+```sql
+SELECT * FROM roles;
+```
+
+**Expected output:**
+```
+id | nombre_rol  | descripcion
+---+-------------+------------------------------------------
+ 1 | Estudiante  | Usuario matriculado en programa académico
+ 2 | Empleado    | Trabajador vinculado directamente a UCC
+ 3 | Contratista | Proveedor externo con contrato activo
+```
+
+## Troubleshooting
+
+### Migration Fails with Foreign Key Error
+
+**Problem**: Scripts executed out of order
+
+**Solution**: Drop all tables and re-run from `01_usuarios.sql`:
+
+```sql
+DROP TABLE IF EXISTS fallas CASCADE;
+DROP TABLE IF EXISTS info_contratista CASCADE;
+DROP TABLE IF EXISTS info_empleado CASCADE;
+DROP TABLE IF EXISTS info_estudiante CASCADE;
+DROP TABLE IF EXISTS usuario_roles CASCADE;
+DROP TABLE IF EXISTS semestres CASCADE;
+DROP TABLE IF EXISTS roles CASCADE;
+DROP TABLE IF EXISTS usuarios CASCADE;
+DROP TYPE IF EXISTS estado_de_acceso CASCADE;
+```
+
+### RLS Blocks All Queries
+
+**Problem**: Forgot to run `08_rls_policies.sql`
+
+**Solution**: Execute the RLS policies script in SQL Editor
+
+### Cannot Connect from Application
+
+**Problem**: Wrong credentials or network issue
+
+**Solution**: 
+1. Verify `VITE_SUPABASE_URL` matches your project URL
+2. Confirm `VITE_SUPABASE_ANON_KEY` is the **anon** key (not service_role)
+3. Check browser console for CORS or network errors
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="lock" href="/development/backend/authentication">
+    Set up user authentication and session management
+  </Card>
+  
+  <Card title="Database Operations" icon="database" href="/development/backend/database-operations">
+    Learn CRUD operations and query patterns
+  </Card>
+</CardGroup>

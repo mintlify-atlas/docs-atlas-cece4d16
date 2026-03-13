@@ -1,0 +1,670 @@
+---
+title: 'Component Documentation'
+description: 'React components, patterns, and styling guide for the UCC Access Control System'
+icon: 'puzzle-piece'
+---
+
+## Component Philosophy
+
+The UCC Access Control System uses **functional components** with React Hooks, following modern React best practices:
+
+<CardGroup cols={3}>
+  <Card title="Functional Components" icon="function">
+    All components use function syntax with hooks
+  </Card>
+  <Card title="Composition" icon="layer-group">
+    Small, reusable components composed together
+  </Card>
+  <Card title="Utility-First CSS" icon="paintbrush">
+    Tailwind CSS for rapid, consistent styling
+  </Card>
+</CardGroup>
+
+## React Patterns
+
+### Custom Hooks
+
+Custom hooks encapsulate component logic and state management:
+
+```javascript src/modules/login/application/hooks/useLogin.js
+import { useState } from 'react';
+import { ValidateInstitutionalIdUseCase } from '../../domain/usecases/ValidateInstitutionalIdUseCase';
+import { AuthRepositoryImpl } from '../../infrastructure/repositories/AuthRepositoryImpl';
+
+export const useLogin = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
+
+  const authRepository = new AuthRepositoryImpl();
+  const validateIdUseCase = new ValidateInstitutionalIdUseCase(authRepository);
+
+  const validateId = async (idInstitucional) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await validateIdUseCase.execute(idInstitucional);
+
+      if (result.success) {
+        setUser(result.user);
+        return { success: true, user: result.user };
+      } else {
+        setError(result.error);
+        return { success: false, error: result.error };
+      }
+    } catch (err) {
+      const errorMessage = 'Error inesperado al validar el ID';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearError = () => setError(null);
+  const reset = () => {
+    setLoading(false);
+    setError(null);
+    setUser(null);
+  };
+
+  return { loading, error, user, validateId, clearError, reset };
+};
+```
+
+**Benefits**:
+- Separates logic from presentation
+- Reusable across multiple components
+- Easy to test independently
+- Clean component code
+
+### Controlled Components
+
+Forms use controlled components for input validation:
+
+```jsx
+const [idInstitucional, setIdInstitucional] = useState('');
+
+const handleInputChange = (e) => {
+  const value = e.target.value;
+  // Only allow numbers
+  if (/^\d*$/.test(value)) {
+    setIdInstitucional(value);
+  }
+};
+
+<input
+  type="text"
+  inputMode="numeric"
+  pattern="\d*"
+  value={idInstitucional}
+  onChange={handleInputChange}
+  placeholder="Ej: 80123456"
+  required
+/>
+```
+
+### Conditional Rendering
+
+Components adapt to different states and data:
+
+```jsx src/modules/user-profile/presentation/components/ProfileHeader.jsx
+{/* Avatar with fallback to initials */}
+<div className="w-24 h-24 rounded-full border-4 border-white shadow-xl overflow-hidden mb-4 bg-blue-700 flex items-center justify-center">
+  {foto_url ? (
+    <img src={foto_url} alt={nombre_completo} className="w-full h-full object-cover" />
+  ) : (
+    <span className="text-3xl font-bold text-white">
+      {getInitials(nombre_completo)}
+    </span>
+  )}
+</div>
+
+{/* Fault indicator - only shown when faults exist */}
+{user.total_fallas > 0 && (
+  <div className={`mt-3 px-4 py-1.5 rounded-full text-xs font-semibold ${
+    user.total_fallas >= 3
+      ? 'bg-orange-500 text-white'
+      : 'bg-blue-700 text-blue-100'
+  }`}>
+    {user.total_fallas}/4 fallas registradas
+  </div>
+)}
+```
+
+### Component Composition
+
+Build complex UIs from smaller, focused components:
+
+```jsx
+export const UserProfilePage = () => {
+  const location = useLocation();
+  const { user } = location.state || {};
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <ProfileHeader user={user} />
+      
+      <div className="px-4 py-6 space-y-4 max-w-2xl mx-auto">
+        <PersonalInfoCard user={user} />
+        
+        {user.roles.map(rol => (
+          <RoleInfoCard key={rol} rol={rol} info={user[`info_${rol.toLowerCase()}`]} />
+        ))}
+        
+        <FallasHistory fallas={user.fallas} />
+      </div>
+    </div>
+  );
+};
+```
+
+## Styling with Tailwind CSS
+
+### UCC Institutional Colors
+
+Custom color palette configured in `tailwind.config.js`:
+
+```javascript tailwind.config.js
+export default {
+  content: [
+    "./index.html",
+    "./src/**/*.{js,jsx,ts,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        // UCC Corporate Colors
+        'ucc-azul': {
+          primary: '#003DA5',
+          dark: '#002870',
+          light: '#4A7BBA',
+        },
+        'ucc-naranja': {
+          primary: '#FF6B35',
+          light: '#FF8C5F',
+          dark: '#E55A2B',
+        }
+      },
+      fontFamily: {
+        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+      }
+    },
+  },
+  plugins: [],
+}
+```
+
+### Using Custom Colors
+
+```jsx
+{/* Primary UCC blue */}
+<div className="bg-ucc-azul-primary text-white">
+  Universidad Cooperativa de Colombia
+</div>
+
+{/* UCC orange for accents */}
+<button className="bg-ucc-naranja-primary hover:bg-ucc-naranja-dark text-white">
+  Ingresar
+</button>
+
+{/* Gradient with UCC blues */}
+<button className="bg-gradient-to-r from-blue-800 to-blue-900 hover:from-blue-900 hover:to-blue-950">
+  INGRESAR
+</button>
+```
+
+### Color Usage Guidelines
+
+<CardGroup cols={2}>
+  <Card title="UCC Azul (Blue)" color="#003DA5">
+    **Primary**: Headers, main actions, branding
+    **Dark**: Hover states, emphasis
+    **Light**: Backgrounds, subtle accents
+  </Card>
+  <Card title="UCC Naranja (Orange)" color="#FF6B35">
+    **Primary**: Call-to-action buttons, alerts
+    **Dark**: Hover states
+    **Light**: Highlights, notifications
+  </Card>
+</CardGroup>
+
+### Responsive Design
+
+Tailwind's responsive modifiers for mobile-first design:
+
+```jsx
+{/* Mobile-first approach */}
+<div className="w-full max-w-md mx-auto p-6">
+  <div className="space-y-6">
+    {/* Stacks vertically on mobile, side-by-side on larger screens */}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <StatCard label="Total Usuarios" value={1234} />
+      <StatCard label="Usuarios Activos" value={1180} />
+    </div>
+  </div>
+</div>
+```
+
+### Common Utility Patterns
+
+<AccordionGroup>
+  <Accordion title="Card Components">
+    ```jsx
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+        <h2 className="text-sm font-bold uppercase tracking-wide">Title</h2>
+      </div>
+      <div className="px-4 py-3">
+        Content here
+      </div>
+    </div>
+    ```
+  </Accordion>
+  
+  <Accordion title="Button States">
+    ```jsx
+    <button
+      disabled={loading || !isValid}
+      className="
+        w-full py-4 px-6 rounded-lg
+        bg-gradient-to-r from-blue-800 to-blue-900
+        hover:from-blue-900 hover:to-blue-950
+        text-white font-bold
+        transition-all duration-300
+        disabled:opacity-50 disabled:cursor-not-allowed
+        shadow-lg hover:shadow-xl
+        transform hover:-translate-y-0.5
+      "
+    >
+      {loading ? 'Cargando...' : 'Enviar'}
+    </button>
+    ```
+  </Accordion>
+  
+  <Accordion title="Status Badges">
+    ```jsx
+    <span className={`
+      flex items-center gap-1.5 px-3 py-1 rounded-full
+      text-sm font-semibold
+      ${ isActive ? 'bg-green-500 text-white' : 'bg-red-500 text-white' }
+    `}>
+      <span className={`w-2 h-2 rounded-full ${
+        isActive ? 'bg-green-200' : 'bg-red-200'
+      }`} />
+      {isActive ? 'Activo' : 'Bloqueado'}
+    </span>
+    ```
+  </Accordion>
+  
+  <Accordion title="Form Inputs">
+    ```jsx
+    <input
+      className="
+        w-full px-4 py-3
+        border-2 border-gray-300 rounded-lg
+        focus:outline-none
+        focus:border-blue-600
+        focus:ring-2 focus:ring-blue-200
+        transition-colors
+        text-lg text-center
+        disabled:opacity-50 disabled:cursor-not-allowed
+      "
+    />
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Key Component Examples
+
+### Login Form
+
+Complete form with validation, loading states, and error handling:
+
+```jsx src/modules/login/presentation/components/LoginForm.jsx
+import React, { useState } from 'react';
+import { useLogin } from '../../application/hooks/useLogin';
+import { useNavigate } from 'react-router-dom';
+
+export const LoginForm = () => {
+  const [idInstitucional, setIdInstitucional] = useState('');
+  const { loading, error, validateId, clearError } = useLogin();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    clearError();
+
+    const result = await validateId(idInstitucional);
+
+    if (result.success) {
+      navigate('/user-profile', { state: { user: result.user } });
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    if (/^\d*$/.test(value)) {
+      setIdInstitucional(value);
+    }
+  };
+
+  return (
+    <div className="w-full max-w-md mx-auto p-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">
+            Ingrese su ID Institucional
+          </h2>
+          <p className="text-sm text-gray-600">
+            Este sistema es solo para usuarios que NO portan su carnet físico
+          </p>
+        </div>
+
+        <div>
+          <label htmlFor="idInstitucional" className="block text-sm font-medium text-gray-700 mb-2 text-center">
+            ID Institucional
+          </label>
+          <input
+            id="idInstitucional"
+            type="text"
+            inputMode="numeric"
+            pattern="\d*"
+            value={idInstitucional}
+            onChange={handleInputChange}
+            placeholder="Ej: 80123456"
+            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-200 transition-colors text-lg text-center"
+            disabled={loading}
+            required
+          />
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-red-700 font-medium">{error}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <button
+          type="submit"
+          disabled={loading || !idInstitucional}
+          className="w-full bg-gradient-to-r from-blue-800 to-blue-900 hover:from-blue-900 hover:to-blue-950 text-white font-bold py-4 px-6 rounded-lg transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+        >
+          {loading ? (
+            <span className="flex items-center justify-center">
+              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Validando...
+            </span>
+          ) : (
+            'INGRESAR'
+          )}
+        </button>
+
+        <div className="text-center text-xs text-gray-500 mt-4">
+          <p>⚠️ Solo para ingresos contingentes sin carnet</p>
+        </div>
+      </form>
+    </div>
+  );
+};
+```
+
+**Key Features**:
+- Real-time input validation (numeric only)
+- Loading state with spinner animation
+- Error display with icon
+- Disabled state when loading or empty
+- Gradient button with hover effects
+- Responsive design
+
+### Admin Sidebar
+
+Navigational sidebar with active state indication:
+
+```jsx src/modules/admin/presentation/components/AdminSidebar.jsx
+const MENU_ICON = {
+  resumen: (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+    </svg>
+  ),
+  // ... other icons
+};
+
+export const AdminSidebar = ({ vistaActual, onCambiarVista, estadoSistema, onCerrarSesion }) => {
+  const items = [
+    { id: 'resumen', label: 'Resumen', icon: MENU_ICON.resumen },
+    { id: 'usuarios', label: 'Usuarios', icon: MENU_ICON.estudiantes },
+    { id: 'csv', label: 'Semestre', icon: MENU_ICON.csv },
+    { id: 'informes', label: 'Informes', icon: MENU_ICON.informes },
+  ];
+
+  return (
+    <aside className="w-60 min-h-screen flex flex-col" style={{ backgroundColor: '#1B4332' }}>
+      {/* Navigation */}
+      <nav className="flex-1 px-3 py-2 flex flex-col gap-1">
+        {items.map(item => {
+          const activo = vistaActual === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onCambiarVista(item.id)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
+                activo
+                  ? 'bg-white/20 text-white'
+                  : 'text-green-100 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              {item.icon}
+              {item.label}
+              {activo && <span className="ml-auto text-white/60">›</span>}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* System Status */}
+      <div className="mx-3 mb-3 p-3 rounded-lg bg-white/10">
+        <p className="text-green-200 text-xs font-medium mb-1">Estado del sistema</p>
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          <span className="text-white text-xs">{estadoSistema ?? 'Cargando...'}</span>
+        </div>
+      </div>
+    </aside>
+  );
+};
+```
+
+**Key Features**:
+- Dynamic active state styling
+- SVG icons with consistent sizing
+- Hover effects for better UX
+- System status with animated indicator
+- Dark green theme matching admin branding
+
+### Reusable Info Row
+
+Small, focused component for displaying data:
+
+```jsx
+const InfoRow = ({ icon, label, value }) => (
+  <div className="flex items-start gap-3 py-3 border-b border-gray-100 last:border-0">
+    <span className="text-blue-800 mt-0.5 text-lg flex-shrink-0">{icon}</span>
+    <div>
+      <p className="text-xs text-blue-700 font-medium mb-0.5">{label}</p>
+      <p className="text-sm text-gray-800 font-semibold">{value}</p>
+    </div>
+  </div>
+);
+
+{/* Usage */}
+<InfoRow icon="📧" label="Correo Institucional" value="usuario@ucc.edu.co" />
+<InfoRow icon="📱" label="Teléfono" value="+57 300 123 4567" />
+```
+
+## Component Best Practices
+
+<AccordionGroup>
+  <Accordion title="Single Responsibility">
+    Each component should do one thing well. Break down complex components into smaller, focused pieces.
+    
+    ```jsx
+    // Good: Focused components
+    <UserProfile>
+      <ProfileHeader user={user} />
+      <PersonalInfo user={user} />
+      <RoleInfo user={user} />
+    </UserProfile>
+    
+    // Bad: Monolithic component
+    <UserProfile>
+      {/* 500 lines of mixed concerns */}
+    </UserProfile>
+    ```
+  </Accordion>
+  
+  <Accordion title="Props Destructuring">
+    Destructure props for cleaner code and better readability.
+    
+    ```jsx
+    // Good
+    export const ProfileHeader = ({ user }) => {
+      const { nombre_completo, acceso, roles } = user;
+      // ...
+    };
+    
+    // Avoid
+    export const ProfileHeader = (props) => {
+      return <div>{props.user.nombre_completo}</div>;
+    };
+    ```
+  </Accordion>
+  
+  <Accordion title="Named Exports for Components">
+    Use named exports for better IDE support and refactoring.
+    
+    ```jsx
+    // Good
+    export const LoginForm = () => { ... };
+    
+    // Avoid (for components)
+    export default LoginForm;
+    ```
+  </Accordion>
+  
+  <Accordion title="Organize Imports">
+    Group imports logically: external → internal → relative.
+    
+    ```jsx
+    // External dependencies
+    import React, { useState } from 'react';
+    import { useNavigate } from 'react-router-dom';
+    
+    // Internal modules
+    import { useLogin } from '../../application/hooks/useLogin';
+    
+    // Relative imports
+    import { LoginHeader } from './LoginHeader';
+    ```
+  </Accordion>
+  
+  <Accordion title="JSDoc Comments">
+    Document component purpose and props.
+    
+    ```jsx
+    /**
+     * Login form component for institutional ID validation
+     * Handles input validation, loading states, and error display
+     */
+    export const LoginForm = () => {
+      // ...
+    };
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Accessibility Considerations
+
+<CardGroup cols={2}>
+  <Card title="Semantic HTML" icon="code">
+    Use proper HTML elements: `<button>`, `<nav>`, `<form>`, `<label>`
+  </Card>
+  <Card title="ARIA Labels" icon="universal-access">
+    Add `aria-label` to icon-only buttons and decorative elements
+  </Card>
+  <Card title="Keyboard Navigation" icon="keyboard">
+    Ensure all interactive elements are keyboard accessible
+  </Card>
+  <Card title="Focus States" icon="circle-dot">
+    Visible focus indicators with `focus:` Tailwind utilities
+  </Card>
+</CardGroup>
+
+```jsx
+{/* Good accessibility example */}
+<button
+  type="submit"
+  aria-label="Validar ID institucional"
+  className="... focus:outline-none focus:ring-2 focus:ring-blue-600"
+>
+  INGRESAR
+</button>
+
+<input
+  id="idInstitucional"
+  type="text"
+  aria-required="true"
+  aria-invalid={!!error}
+  aria-describedby={error ? 'error-message' : undefined}
+/>
+{error && <p id="error-message" role="alert">{error}</p>}
+```
+
+## Performance Tips
+
+1. **Avoid Inline Function Definitions in Props**
+   ```jsx
+   // Good
+   const handleClick = () => { ... };
+   <Button onClick={handleClick} />
+   
+   // Avoid (creates new function on every render)
+   <Button onClick={() => { ... }} />
+   ```
+
+2. **Use React.memo for Expensive Components**
+   ```jsx
+   export const ExpensiveComponent = React.memo(({ data }) => {
+     // Complex rendering logic
+   });
+   ```
+
+3. **Lazy Load Routes**
+   ```jsx
+   const AdminPage = React.lazy(() => import('./modules/admin/presentation/pages/AdminPage'));
+   ```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture Guide" icon="layer-group" href="/development/frontend/architecture">
+    Understand the Clean Architecture layers
+  </Card>
+  <Card title="Module Documentation" icon="folder-tree" href="/development/frontend/modules">
+    Explore module structure and organization
+  </Card>
+</CardGroup>

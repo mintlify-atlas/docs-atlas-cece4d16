@@ -1,0 +1,1252 @@
+---
+title: 'System Architecture'
+description: 'Technical architecture of UCC Control de Acceso - Clean Architecture, tech stack, and database design'
+icon: 'diagram-project'
+---
+
+## Architecture Overview
+
+UCC Control de Acceso is built using **Clean Architecture** principles, ensuring separation of concerns, testability, and maintainability.
+
+{/* Image placeholder: Clean Architecture Layers diagram */}
+
+### Clean Architecture Principles
+
+<CardGroup cols={4}>
+  <Card title="Domain" icon="gem">
+    **Pure Business Logic**
+    
+    Entities, interfaces, and use cases independent of frameworks.
+  </Card>
+
+  <Card title="Application" icon="gears">
+    **Use Case Orchestration**
+    
+    React hooks and application-specific business rules.
+  </Card>
+
+  <Card title="Infrastructure" icon="database">
+    **External Integrations**
+    
+    APIs, databases, and third-party services.
+  </Card>
+
+  <Card title="Presentation" icon="desktop">
+    **UI Components**
+    
+    React components, pages, and user interface logic.
+  </Card>
+</CardGroup>
+
+## Frontend Architecture
+
+### Project Structure
+
+```bash
+src/
+├── modules/
+│   ├── login/                    # Login module
+│   │   ├── domain/              # Business logic layer
+│   │   │   ├── entities/        # User entity
+│   │   │   ├── repositories/    # AuthRepository interface
+│   │   │   └── usecases/        # ValidateInstitutionalIdUseCase
+│   │   ├── infrastructure/      # External dependencies
+│   │   │   ├── api/            # API client (apiClient.js)
+│   │   │   └── repositories/   # AuthRepositoryImpl
+│   │   ├── application/         # Application layer
+│   │   │   └── hooks/          # useLogin hook
+│   │   └── presentation/        # UI layer
+│   │       ├── components/     # LoginForm component
+│   │       └── pages/          # LoginPage
+│   │
+│   ├── user-profile/            # User profile module
+│   │   ├── application/
+│   │   │   └── hooks/          # useUserProfile hook
+│   │   ├── infrastructure/
+│   │   │   ├── datasources/    # Supabase integration
+│   │   │   └── repositories/
+│   │   └── presentation/
+│   │       ├── components/     # ProfileHeader, RoleInfoCard, etc.
+│   │       └── pages/          # UserProfilePage
+│   │
+│   └── admin/                   # Admin panel module
+│       ├── application/
+│       │   └── hooks/          # useAdminDashboard, useReporte
+│       ├── domain/
+│       │   └── repositories/   # AdminRepository
+│       ├── infrastructure/
+│       │   └── repositories/   # AdminRepositoryImpl
+│       └── presentation/
+│           ├── components/
+│           │   ├── views/      # ResumenView, ReportesView, etc.
+│           │   ├── AdminSidebar.jsx
+│           │   └── StatCard.jsx
+│           └── pages/          # AdminPage
+│
+├── shared/                      # Shared components
+│   ├── components/
+│   │   └── ProtectedRoute.jsx  # Route protection
+│   └── lib/                    # Utilities
+│
+├── assets/                      # Static assets
+│   └── logo_ucc_2018(CURVAS)-01.jpg
+│
+├── App.jsx                      # Main app with routing
+└── index.jsx                    # Entry point
+```
+
+### Module Architecture: Login Example
+
+<Tabs>
+  <Tab title="Domain Layer">
+    **Pure business logic** - No dependencies on frameworks or external libraries.
+
+    ```javascript
+    // src/modules/login/domain/entities/User.js
+    export class User {
+      constructor({
+        id,
+        idInstitucional,
+        documentoIdentidad,
+        nombreCompleto,
+        correoInstitucional,
+        estadoGeneral,
+        totalFallas,
+        roles,
+      }) {
+        this.id = id;
+        this.idInstitucional = idInstitucional;
+        this.documentoIdentidad = documentoIdentidad;
+        this.nombreCompleto = nombreCompleto;
+        this.correoInstitucional = correoInstitucional;
+        this.estadoGeneral = estadoGeneral; // 'activo' | 'bloqueado'
+        this.totalFallas = totalFallas;
+        this.roles = roles; // ['Estudiante', 'Empleado', 'Contratista']
+      }
+
+      isBlocked() {
+        return this.estadoGeneral === 'bloqueado';
+      }
+
+      canEnter() {
+        return !this.isBlocked() && this.totalFallas < 4;
+      }
+    }
+    ```
+
+    ```javascript
+    // src/modules/login/domain/repositories/AuthRepository.js
+    /**
+     * Repository interface for authentication
+     * Infrastructure layer will implement this
+     */
+    export class AuthRepository {
+      async validateInstitutionalId(idInstitucional) {
+        throw new Error('Method not implemented');
+      }
+    }
+    ```
+
+    ```javascript
+    // src/modules/login/domain/usecases/ValidateInstitutionalIdUseCase.js
+    export class ValidateInstitutionalIdUseCase {
+      constructor(authRepository) {
+        this.authRepository = authRepository;
+      }
+
+      async execute(idInstitucional) {
+        if (!idInstitucional) {
+          throw new Error('ID institucional es requerido');
+        }
+
+        const user = await this.authRepository.validateInstitutionalId(
+          idInstitucional
+        );
+
+        if (!user) {
+          throw new Error('Usuario no encontrado');
+        }
+
+        return user;
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab title="Infrastructure Layer">
+    **External integrations** - API clients and concrete repository implementations.
+
+    ```javascript
+    // src/modules/login/infrastructure/api/apiClient.js
+    import axios from 'axios';
+
+    const apiClient = axios.create({
+      baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Request interceptor
+    apiClient.interceptors.request.use(
+      (config) => {
+        const token = localStorage.getItem('auth_token');
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+      },
+      (error) => Promise.reject(error)
+    );
+
+    // Response interceptor
+    apiClient.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 401) {
+          localStorage.removeItem('auth_token');
+          window.location.href = '/login';
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    export default apiClient;
+    ```
+
+    ```javascript
+    // src/modules/login/infrastructure/repositories/AuthRepositoryImpl.js
+    import { AuthRepository } from '../../domain/repositories/AuthRepository';
+    import apiClient from '../api/apiClient';
+    import { User } from '../../domain/entities/User';
+
+    export class AuthRepositoryImpl extends AuthRepository {
+      async validateInstitutionalId(idInstitucional) {
+        try {
+          const response = await apiClient.post('/api/auth/login', {
+            id_institucional: idInstitucional,
+          });
+
+          const userData = response.data.usuario;
+
+          return new User({
+            id: userData.id,
+            idInstitucional: userData.id_institucional,
+            documentoIdentidad: userData.documento_identidad,
+            nombreCompleto: userData.nombre_completo,
+            correoInstitucional: userData.correo_institucional,
+            estadoGeneral: userData.estado_general,
+            totalFallas: userData.total_fallas,
+            roles: userData.roles,
+          });
+        } catch (error) {
+          throw new Error(
+            error.response?.data?.message || 'Error al validar ID'
+          );
+        }
+      }
+    }
+    ```
+  </Tab>
+
+  <Tab title="Application Layer">
+    **React hooks** - Orchestrate use cases and manage UI state.
+
+    ```javascript
+    // src/modules/login/application/hooks/useLogin.js
+    import { useState } from 'react';
+    import { useNavigate } from 'react-router-dom';
+    import { ValidateInstitutionalIdUseCase } from '../../domain/usecases/ValidateInstitutionalIdUseCase';
+    import { AuthRepositoryImpl } from '../../infrastructure/repositories/AuthRepositoryImpl';
+
+    export const useLogin = () => {
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+      const navigate = useNavigate();
+
+      // Dependency injection
+      const authRepository = new AuthRepositoryImpl();
+      const validateIdUseCase = new ValidateInstitutionalIdUseCase(
+        authRepository
+      );
+
+      const login = async (idInstitucional) => {
+        try {
+          setLoading(true);
+          setError(null);
+
+          // Execute use case
+          const user = await validateIdUseCase.execute(idInstitucional);
+
+          // Navigate to profile
+          navigate('/user-profile', {
+            state: { user }
+          });
+
+          return user;
+        } catch (err) {
+          setError(err.message);
+          throw err;
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      return { login, loading, error };
+    };
+    ```
+  </Tab>
+
+  <Tab title="Presentation Layer">
+    **React components** - UI logic and user interactions.
+
+    ```jsx
+    // src/modules/login/presentation/pages/LoginPage.jsx
+    import React from 'react';
+    import { LoginForm } from '../components/LoginForm';
+    import logoUCC from '../../../../assets/logo_ucc_2018(CURVAS)-01.jpg';
+
+    export const LoginPage = () => {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-orange-50 flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-md">
+            {/* Logo UCC */}
+            <div className="flex justify-center mb-8">
+              <div className="bg-white rounded-2xl shadow-xl p-6">
+                <img 
+                  src={logoUCC} 
+                  alt="Universidad Cooperativa de Colombia" 
+                  className="h-24 w-auto object-contain"
+                />
+              </div>
+            </div>
+
+            {/* Login Form */}
+            <div className="bg-white rounded-2xl shadow-2xl p-8">
+              <LoginForm />
+            </div>
+
+            {/* Footer */}
+            <div className="text-center mt-6 text-sm text-gray-600">
+              <p>© 2026 Universidad Cooperativa de Colombia</p>
+            </div>
+          </div>
+        </div>
+      );
+    };
+    ```
+
+    ```jsx
+    // src/modules/login/presentation/components/LoginForm.jsx
+    import React, { useState } from 'react';
+    import { useLogin } from '../../application/hooks/useLogin';
+
+    export const LoginForm = () => {
+      const [idInstitucional, setIdInstitucional] = useState('');
+      const { login, loading, error } = useLogin();
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+          await login(idInstitucional);
+        } catch (err) {
+          // Error is handled by the hook
+        }
+      };
+
+      return (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-800">
+              Control de Acceso
+            </h2>
+            <p className="text-sm text-gray-600 mt-2">
+              Ingrese su ID Institucional
+            </p>
+          </div>
+
+          <div>
+            <input
+              type="text"
+              pattern="[0-9]*"
+              inputMode="numeric"
+              value={idInstitucional}
+              onChange={(e) => setIdInstitucional(e.target.value)}
+              placeholder="Ejemplo: 80123456"
+              className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg"
+              disabled={loading}
+            />
+          </div>
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading || !idInstitucional}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg"
+          >
+            {loading ? 'Validando...' : 'INGRESAR'}
+          </button>
+        </form>
+      );
+    };
+    ```
+  </Tab>
+</Tabs>
+
+### Routing Architecture
+
+```jsx
+// src/App.jsx
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { LoginPage }       from './modules/login/presentation/pages/LoginPage';
+import { UserProfilePage } from './modules/user-profile/presentation/pages/UserProfilePage';
+import { AdminPage }       from './modules/admin/presentation/pages/AdminPage';
+import { ProtectedRoute }  from './shared/components/ProtectedRoute';
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        {/* Public route */}
+        <Route path="/login" element={<LoginPage />} />
+
+        {/* Protected route - requires authentication */}
+        <Route
+          path="/user-profile"
+          element={
+            <ProtectedRoute>
+              <UserProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin panel */}
+        <Route path="/admin" element={<AdminPage />} />
+
+        {/* Default redirect */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;
+```
+
+## Backend Architecture
+
+### Technology: Supabase
+
+The backend uses **Supabase** as the Backend-as-a-Service (BaaS) solution, providing:
+
+<CardGroup cols={2}>
+  <Card title="PostgreSQL Database" icon="database">
+    Robust relational database with full SQL support
+  </Card>
+
+  <Card title="Auto-generated API" icon="code">
+    RESTful API and real-time subscriptions
+  </Card>
+
+  <Card title="Authentication" icon="key">
+    Built-in auth with JWT tokens
+  </Card>
+
+  <Card title="Row-Level Security" icon="shield">
+    Database-level security policies
+  </Card>
+</CardGroup>
+
+### Expected API Endpoints
+
+<CodeGroup>
+```javascript POST /api/auth/login
+// Validate institutional ID and return user data
+{
+  "id_institucional": "80123456"
+}
+
+// Response
+{
+  "usuario": {
+    "id": 1,
+    "id_institucional": "80123456",
+    "documento_identidad": "1234567890",
+    "nombre_completo": "Juan Pérez Gómez",
+    "correo_institucional": "juan.perez@ucc.edu.co",
+    "estado_general": "activo",
+    "total_fallas": 2,
+    "roles": ["Estudiante", "Empleado"]
+  }
+}
+```
+
+```javascript GET /api/usuarios/:id
+// Get complete user information
+// Response includes all roles and role-specific data
+{
+  "usuario": {
+    "id": 1,
+    "id_institucional": "80123456",
+    "nombre_completo": "Juan Pérez Gómez",
+    "roles": ["Estudiante", "Empleado"],
+    "info_estudiante": {
+      "programa_academico": "Ingeniería de Sistemas",
+      "facultad": "Facultad de Ingeniería",
+      "campus_sede": "Bogotá",
+      "semestre": 8
+    },
+    "info_empleado": {
+      "dependencia": "Área Financiera",
+      "cargo": "Coordinador",
+      "tipo_contrato": "indefinido"
+    }
+  }
+}
+```
+
+```javascript POST /api/registro-falla
+// Register a failure (forgot, lost, stolen)
+{
+  "usuario_id": 1,
+  "motivo": "olvido",  // "olvido" | "perdida" | "robo"
+  "sede_registro": "Campus Bogotá",
+  "observacion": "Optional notes"
+}
+
+// Response
+{
+  "success": true,
+  "estado": "activo",  // or "bloqueado"
+  "total_fallas": 3,
+  "mensaje": "Ingreso permitido. Fallas: 3/4"
+}
+```
+
+```javascript POST /api/admin/desbloquear
+// Unblock a user (admin only)
+{
+  "usuario_id": 1,
+  "admin_id": 5,
+  "observacion_desbloqueo": "User brought official ID and new card"
+}
+
+// Response
+{
+  "success": true,
+  "usuario": {
+    "estado_general": "activo",
+    "total_fallas": 0  // Counter reset
+  }
+}
+```
+
+```javascript GET /api/admin/dashboard
+// Get admin dashboard statistics
+// Response
+{
+  "bloqueados": 12,
+  "riesgo_alto": 8,   // 3 failures
+  "con_2_fallas": 15,
+  "con_1_falla": 42,
+  "sin_fallas": 523,
+  "ingresos_hoy": 89,
+  "ingresos_semana": 234,
+  "ingresos_mes": 1056
+}
+```
+</CodeGroup>
+
+## Database Schema
+
+### Entity Relationship Diagram
+
+```mermaid
+erDiagram
+    Usuarios ||--o{ Usuario_Roles : has
+    Roles ||--o{ Usuario_Roles : assigned
+    Usuarios ||--o| Info_Estudiantes : details
+    Usuarios ||--o| Info_Empleados : details
+    Usuarios ||--o| Info_Contratistas : details
+    Usuarios ||--o{ Registro_Fallas : records
+    Usuarios ||--o{ Historial_Bloqueos : has
+    Administradores ||--o{ Historial_Bloqueos : manages
+    Usuarios ||--|| Administradores : may_be
+
+    Usuarios {
+        int id PK
+        varchar id_institucional UK
+        varchar documento_identidad UK
+        varchar nombre_completo
+        varchar correo_institucional UK
+        enum estado_general
+        int total_fallas
+        timestamp created_at
+    }
+
+    Roles {
+        int id PK
+        varchar nombre_rol
+        text descripcion
+    }
+
+    Usuario_Roles {
+        int usuario_id FK
+        int rol_id FK
+        timestamp fecha_asignacion
+        boolean activo
+    }
+
+    Info_Estudiantes {
+        int usuario_id PK_FK
+        varchar programa_academico
+        varchar facultad
+        varchar campus_sede
+        int semestre
+        enum estado_academico
+    }
+
+    Registro_Fallas {
+        int id PK
+        int usuario_id FK
+        timestamp fecha_hora
+        enum motivo
+        text observacion
+        varchar sede_registro
+    }
+
+    Historial_Bloqueos {
+        int id PK
+        int usuario_id FK
+        timestamp fecha_bloqueo
+        enum motivo_bloqueo
+        timestamp fecha_desbloqueo
+        int desbloqueado_por FK
+        enum estado
+    }
+```
+
+### Core Tables
+
+<Tabs>
+  <Tab title="Usuarios (Users)">
+    Main user table storing basic information.
+
+    ```sql
+    CREATE TABLE Usuarios (
+      id INTEGER PRIMARY KEY AUTO_INCREMENT,
+      id_institucional VARCHAR(20) UNIQUE NOT NULL,
+      documento_identidad VARCHAR(20) UNIQUE NOT NULL,
+      nombre_completo VARCHAR(255) NOT NULL,
+      correo_institucional VARCHAR(255) UNIQUE NOT NULL,
+      estado_general ENUM('activo', 'bloqueado') DEFAULT 'activo',
+      total_fallas INTEGER DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      
+      INDEX idx_id_institucional (id_institucional),
+      INDEX idx_estado (estado_general),
+      INDEX idx_fallas (total_fallas)
+    );
+    ```
+
+    **Key Fields:**
+    - `id_institucional`: Unique ID assigned by UCC (e.g., 80123456)
+    - `estado_general`: User status ('activo' or 'bloqueado')
+    - `total_fallas`: Accumulated failure counter
+  </Tab>
+
+  <Tab title="Roles">
+    Defines available roles in the system.
+
+    ```sql
+    CREATE TABLE Roles (
+      id INTEGER PRIMARY KEY AUTO_INCREMENT,
+      nombre_rol VARCHAR(50) NOT NULL,
+      descripcion TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Initial data
+    INSERT INTO Roles (id, nombre_rol, descripcion) VALUES
+      (1, 'Estudiante', 'Usuario estudiante de la universidad'),
+      (2, 'Empleado', 'Empleado de la universidad'),
+      (3, 'Contratista', 'Contratista externo');
+    ```
+
+    **Available Roles:**
+    1. Estudiante (Student)
+    2. Empleado (Employee)
+    3. Contratista (Contractor)
+  </Tab>
+
+  <Tab title="Usuario_Roles">
+    Many-to-many relationship between users and roles.
+
+    ```sql
+    CREATE TABLE Usuario_Roles (
+      usuario_id INTEGER NOT NULL,
+      rol_id INTEGER NOT NULL,
+      fecha_asignacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      activo BOOLEAN DEFAULT TRUE,
+      
+      PRIMARY KEY (usuario_id, rol_id),
+      FOREIGN KEY (usuario_id) REFERENCES Usuarios(id) ON DELETE CASCADE,
+      FOREIGN KEY (rol_id) REFERENCES Roles(id)
+    );
+    ```
+
+    **Example:** A user can be both Student AND Employee:
+    ```sql
+    INSERT INTO Usuario_Roles (usuario_id, rol_id) VALUES
+      (1, 1), -- User 1 is a Student
+      (1, 2); -- User 1 is also an Employee
+    ```
+  </Tab>
+
+  <Tab title="Registro_Fallas">
+    Historical record of all failures.
+
+    ```sql
+    CREATE TABLE Registro_Fallas (
+      id INTEGER PRIMARY KEY AUTO_INCREMENT,
+      usuario_id INTEGER NOT NULL,
+      fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      motivo ENUM('olvido', 'perdida', 'robo') NOT NULL,
+      observacion TEXT,
+      sede_registro VARCHAR(100),
+      vigilante_registro VARCHAR(255),
+      
+      FOREIGN KEY (usuario_id) REFERENCES Usuarios(id),
+      INDEX idx_usuario_fecha (usuario_id, fecha_hora),
+      INDEX idx_motivo (motivo)
+    );
+    ```
+
+    **Motivo Options:**
+    - `olvido`: User forgot the card
+    - `perdida`: User lost the card
+    - `robo`: Card was stolen
+  </Tab>
+
+  <Tab title="Historial_Bloqueos">
+    History of blocks and unblocks.
+
+    ```sql
+    CREATE TABLE Historial_Bloqueos (
+      id INTEGER PRIMARY KEY AUTO_INCREMENT,
+      usuario_id INTEGER NOT NULL,
+      fecha_bloqueo TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      motivo_bloqueo ENUM(
+        'limite_fallas',
+        'perdida_carnet',
+        'robo_carnet',
+        'administrativo'
+      ) NOT NULL,
+      observacion_bloqueo TEXT,
+      fecha_desbloqueo TIMESTAMP NULL,
+      desbloqueado_por INTEGER NULL,
+      observacion_desbloqueo TEXT NULL,
+      estado ENUM('activo', 'resuelto') DEFAULT 'activo',
+      
+      FOREIGN KEY (usuario_id) REFERENCES Usuarios(id),
+      FOREIGN KEY (desbloqueado_por) REFERENCES Administradores(id),
+      INDEX idx_usuario (usuario_id),
+      INDEX idx_estado (estado)
+    );
+    ```
+
+    **Block Reasons:**
+    - `limite_fallas`: 4th "olvido" triggered automatic block
+    - `perdida_carnet`: User reported card lost
+    - `robo_carnet`: User reported card stolen
+    - `administrativo`: Administrative block by staff
+  </Tab>
+</Tabs>
+
+### Business Logic Queries
+
+<CodeGroup>
+```sql Check User Status
+-- Get user status and failure count
+SELECT 
+  u.id,
+  u.id_institucional,
+  u.nombre_completo,
+  u.estado_general,
+  u.total_fallas,
+  COUNT(rf.id) as total_registros_fallas
+FROM Usuarios u
+LEFT JOIN Registro_Fallas rf ON u.id = rf.usuario_id
+WHERE u.id_institucional = '80123456'
+GROUP BY u.id;
+```
+
+```sql Register Olvido (Forgot)
+-- Register "forgot" failure and check if user should be blocked
+START TRANSACTION;
+
+-- Insert failure record
+INSERT INTO Registro_Fallas (
+  usuario_id,
+  motivo,
+  sede_registro
+) VALUES (
+  1,
+  'olvido',
+  'Campus Bogotá'
+);
+
+-- Increment counter
+UPDATE Usuarios
+SET total_fallas = total_fallas + 1
+WHERE id = 1;
+
+-- Check if should block (4+ failures)
+UPDATE Usuarios
+SET estado_general = 'bloqueado'
+WHERE id = 1 AND total_fallas >= 4;
+
+-- If blocked, create block record
+INSERT INTO Historial_Bloqueos (
+  usuario_id,
+  motivo_bloqueo,
+  observacion_bloqueo
+)
+SELECT 
+  id,
+  'limite_fallas',
+  'Bloqueado automáticamente por 4 olvidos'
+FROM Usuarios
+WHERE id = 1 AND estado_general = 'bloqueado';
+
+COMMIT;
+```
+
+```sql Register Loss/Theft
+-- Immediate block for lost or stolen card
+START TRANSACTION;
+
+-- Insert failure record (without incrementing counter)
+INSERT INTO Registro_Fallas (
+  usuario_id,
+  motivo,
+  sede_registro
+) VALUES (
+  1,
+  'perdida',  -- or 'robo'
+  'Campus Bogotá'
+);
+
+-- Block user immediately
+UPDATE Usuarios
+SET estado_general = 'bloqueado'
+WHERE id = 1;
+
+-- Create block record
+INSERT INTO Historial_Bloqueos (
+  usuario_id,
+  motivo_bloqueo,
+  observacion_bloqueo
+) VALUES (
+  1,
+  'perdida_carnet',  -- or 'robo_carnet'
+  'Usuario reportó pérdida de carnet'
+);
+
+COMMIT;
+```
+
+```sql Unblock User
+-- Admin unblocks a user
+START TRANSACTION;
+
+-- Activate user
+UPDATE Usuarios
+SET 
+  estado_general = 'activo',
+  total_fallas = 0  -- Reset counter
+WHERE id = 1;
+
+-- Update block record
+UPDATE Historial_Bloqueos
+SET 
+  fecha_desbloqueo = NOW(),
+  desbloqueado_por = 5,  -- Admin ID
+  observacion_desbloqueo = 'User brought new card',
+  estado = 'resuelto'
+WHERE usuario_id = 1 AND estado = 'activo';
+
+COMMIT;
+```
+
+```sql Dashboard Stats
+-- Get statistics for admin dashboard
+SELECT
+  -- Blocked users
+  SUM(CASE WHEN estado_general = 'bloqueado' THEN 1 ELSE 0 END) as bloqueados,
+  
+  -- High risk (3 failures)
+  SUM(CASE WHEN total_fallas = 3 THEN 1 ELSE 0 END) as riesgo_alto,
+  
+  -- Medium risk (2 failures)
+  SUM(CASE WHEN total_fallas = 2 THEN 1 ELSE 0 END) as con_2_fallas,
+  
+  -- Low risk (1 failure)
+  SUM(CASE WHEN total_fallas = 1 THEN 1 ELSE 0 END) as con_1_falla,
+  
+  -- No failures
+  SUM(CASE WHEN total_fallas = 0 THEN 1 ELSE 0 END) as sin_fallas
+FROM Usuarios;
+```
+</CodeGroup>
+
+## Technology Stack
+
+### Frontend
+
+<CardGroup cols={3}>
+  <Card title="React 18" icon="react">
+    **UI Framework**
+    
+    Modern React with hooks and functional components
+  </Card>
+
+  <Card title="Vite" icon="bolt">
+    **Build Tool**
+    
+    Fast dev server and optimized production builds
+  </Card>
+
+  <Card title="Tailwind CSS" icon="palette">
+    **Styling**
+    
+    Utility-first CSS framework with UCC custom colors
+  </Card>
+
+  <Card title="React Router" icon="route">
+    **Routing**
+    
+    Client-side routing with protected routes
+  </Card>
+
+  <Card title="Axios" icon="arrows-spin">
+    **HTTP Client**
+    
+    Promise-based HTTP client with interceptors
+  </Card>
+
+  <Card title="XLSX" icon="file-excel">
+    **Excel Export**
+    
+    Generate Excel reports from admin panel
+  </Card>
+
+  <Card title="Recharts" icon="chart-line">
+    **Charts**
+    
+    Data visualization for admin dashboard
+  </Card>
+
+  <Card title="Supabase JS" icon="database">
+    **Backend Client**
+    
+    Official Supabase client for JavaScript
+  </Card>
+
+  <Card title="JavaScript ES6+" icon="js">
+    **Language**
+    
+    Modern JavaScript with async/await
+  </Card>
+</CardGroup>
+
+### Backend
+
+<CardGroup cols={2}>
+  <Card title="Supabase" icon="database">
+    **Backend-as-a-Service**
+    
+    PostgreSQL database + Auto API + Auth
+  </Card>
+
+  <Card title="PostgreSQL" icon="database">
+    **Database**
+    
+    Robust relational database
+  </Card>
+
+  <Card title="Row-Level Security" icon="shield">
+    **Security**
+    
+    Database-level access control
+  </Card>
+
+  <Card title="Real-time" icon="bolt">
+    **WebSockets**
+    
+    Live updates for admin dashboard
+  </Card>
+</CardGroup>
+
+### Development Tools
+
+```json
+// package.json
+{
+  "name": "ucc-control-acceso",
+  "version": "1.0.0",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.97.0",
+    "axios": "^1.6.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "recharts": "^3.7.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "tailwindcss": "^3.3.6",
+    "vite": "^5.0.8"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  }
+}
+```
+
+## Design System
+
+### UCC Corporate Colors
+
+The application uses official UCC brand colors:
+
+```javascript
+// tailwind.config.js
+module.exports = {
+  theme: {
+    extend: {
+      colors: {
+        'ucc-azul': {
+          primary: '#003DA5',  // Main institutional blue
+          dark: '#002870',     // Dark blue
+          light: '#4A7BBA',    // Light blue
+        },
+        'ucc-naranja': {
+          primary: '#FF6B35',  // Main institutional orange
+          light: '#FF8C5F',    // Light orange
+          dark: '#E55A2B',     // Dark orange
+        },
+      },
+    },
+  },
+};
+```
+
+<CardGroup cols={3}>
+  <Card>
+    <div style={{backgroundColor: '#003DA5', height: '80px', borderRadius: '8px'}}></div>
+    **UCC Blue Primary**
+    
+    `#003DA5`
+  </Card>
+
+  <Card>
+    <div style={{backgroundColor: '#FF6B35', height: '80px', borderRadius: '8px'}}></div>
+    **UCC Orange Primary**
+    
+    `#FF6B35`
+  </Card>
+
+  <Card>
+    <div style={{backgroundColor: '#002870', height: '80px', borderRadius: '8px'}}></div>
+    **UCC Blue Dark**
+    
+    `#002870`
+  </Card>
+</CardGroup>
+
+### Component Examples
+
+<Tabs>
+  <Tab title="Buttons">
+    ```jsx
+    // Primary button (UCC Blue)
+    <button className="bg-ucc-azul-primary hover:bg-ucc-azul-dark text-white font-bold py-3 px-6 rounded-lg">
+      INGRESAR
+    </button>
+
+    // Secondary button (UCC Orange)
+    <button className="bg-ucc-naranja-primary hover:bg-ucc-naranja-dark text-white font-bold py-3 px-6 rounded-lg">
+      Reportar TIC
+    </button>
+
+    // Success button
+    <button className="bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-2xl">
+      ✅ Confirmar
+    </button>
+    ```
+  </Tab>
+
+  <Tab title="Cards">
+    ```jsx
+    // Profile card
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+      <h3 className="text-lg font-bold text-gray-800">
+        Información Personal
+      </h3>
+      <div className="mt-4 space-y-2">
+        <p className="text-sm text-gray-600">
+          <span className="font-semibold">ID:</span> 80123456
+        </p>
+        <p className="text-sm text-gray-600">
+          <span className="font-semibold">Documento:</span> 1234567890
+        </p>
+      </div>
+    </div>
+    ```
+  </Tab>
+
+  <Tab title="Alerts">
+    ```jsx
+    // Warning alert
+    <div className="bg-yellow-50 border border-yellow-300 rounded-2xl p-4">
+      <span className="text-yellow-500 text-xl">⚠️</span>
+      <p className="text-sm text-yellow-800">
+        Tienes 3 fallas. Una más y serás bloqueado.
+      </p>
+    </div>
+
+    // Error alert
+    <div className="bg-red-50 border border-red-300 rounded-2xl p-4">
+      <p className="text-red-800 font-semibold">
+        🚫 Usuario bloqueado
+      </p>
+    </div>
+
+    // Success alert
+    <div className="bg-green-50 border border-green-300 rounded-2xl p-4">
+      <p className="text-green-700 font-semibold">
+        ✅ Falla registrada correctamente
+      </p>
+    </div>
+    ```
+  </Tab>
+</Tabs>
+
+## Deployment
+
+### Build Configuration
+
+```javascript
+// vite.config.js
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    minify: 'terser',
+  },
+  server: {
+    port: 3000,
+    host: true,
+  },
+});
+```
+
+### Environment Variables
+
+```bash
+# .env.example
+VITE_API_URL=https://api.ucc-control.com
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+### Production Build
+
+```bash
+# Install dependencies
+npm install
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+<Info>
+  The build output will be in the `dist/` directory, ready to be deployed to any static hosting service (Vercel, Netlify, AWS S3, etc.).
+</Info>
+
+## Security Considerations
+
+<CardGroup cols={2}>
+  <Card title="JWT Authentication" icon="key">
+    Token-based auth with refresh tokens for admin panel
+  </Card>
+
+  <Card title="Input Validation" icon="shield-check">
+    Client and server-side validation prevents SQL injection
+  </Card>
+
+  <Card title="HTTPS Only" icon="lock">
+    All communications encrypted with TLS/SSL
+  </Card>
+
+  <Card title="Audit Logging" icon="clock-rotate-left">
+    Complete audit trail of all administrative actions
+  </Card>
+
+  <Card title="Rate Limiting" icon="gauge">
+    Prevents brute force attacks on login endpoint
+  </Card>
+
+  <Card title="Row-Level Security" icon="shield">
+    Database-level access control in Supabase
+  </Card>
+</CardGroup>
+
+## Performance Optimizations
+
+- **Code Splitting:** React.lazy() for route-based code splitting
+- **Asset Optimization:** Vite automatically optimizes images and bundles
+- **Caching:** Service Workers for offline support (PWA)
+- **Database Indexing:** Indexes on frequently queried columns
+- **Connection Pooling:** Supabase handles connection pooling automatically
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start Guide" icon="rocket" href="/quickstart">
+    Learn how to use the system as an end user
+  </Card>
+
+  <Card title="API Reference" icon="code" href="/database/procedures">
+    Complete API documentation for developers
+  </Card>
+
+  <Card title="Admin Guide" icon="user-shield" href="/guides/admin-guide">
+    Administrative panel documentation
+  </Card>
+
+  <Card title="Database Schema" icon="database" href="/database/schema">
+    Detailed database design and relationships
+  </Card>
+</CardGroup>

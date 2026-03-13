@@ -1,0 +1,287 @@
+---
+title: 'Dashboard Overview'
+description: 'Real-time metrics and statistics display in the administrative dashboard'
+icon: 'chart-line'
+---
+
+The Admin Dashboard provides a comprehensive real-time view of the access control system status, displaying key metrics, user statistics, and failure trends.
+
+## Dashboard Components
+
+The dashboard is implemented in `ResumenView.jsx` and displays three main sections:
+
+### Metric Cards (StatCard Component)
+
+Four key statistics are displayed prominently at the top:
+
+```jsx
+<StatCard
+  titulo="Total Estudiantes"
+  valor={stats?.totalEstudiantes}
+  icono={<UsersIcon />}
+  colorIcono="text-green-600"
+  bgIcono="bg-green-50"
+/>
+```
+
+<CardGroup cols={2}>
+  <Card title="Total Estudiantes" icon="users">
+    Total number of students registered in the system
+  </Card>
+  <Card title="Activos" icon="user-check">
+    Users with active access (not blocked)
+  </Card>
+  <Card title="Bloqueados" icon="user-lock">
+    Users currently blocked from entry
+  </Card>
+  <Card title="Reportes TIC hoy" icon="triangle-exclamation">
+    Number of card-less entry reports today
+  </Card>
+</CardGroup>
+
+### Real-Time Metrics
+
+The dashboard displays user statistics categorized by failure count:
+
+<Steps>
+  <Step title="Usuarios sin fallas" icon="circle">
+    Users with 0 failures - full access
+  </Step>
+  <Step title="Usuarios con 1 falla" icon="circle" iconType="duotone">
+    Users with 1 failure - monitored
+  </Step>
+  <Step title="Usuarios con 2 fallas" icon="circle" iconType="duotone">
+    Users with 2 failures - warning level
+  </Step>
+  <Step title="Usuarios con 3 fallas (RIESGO)" icon="circle" iconType="solid">
+    Users at risk - one failure away from automatic block
+  </Step>
+  <Step title="Usuarios bloqueados" icon="ban">
+    Users blocked - 4 failures reached or loss/theft reported
+  </Step>
+</Steps>
+
+## Chart Visualizations
+
+### Donut Chart: Card Status
+
+Displays the distribution of active vs. blocked users using Recharts:
+
+```jsx
+<PieChart>
+  <Pie
+    data={donutData}
+    innerRadius={60}
+    outerRadius={85}
+    paddingAngle={3}
+    dataKey="value"
+  >
+    <Cell fill="#1B6B3A" /> {/* Green for Active */}
+    <Cell fill="#EF4444" /> {/* Red for Blocked */}
+  </Pie>
+</PieChart>
+```
+
+**Features:**
+- Center label shows total user count
+- Color-coded: Green (Activos) / Red (Bloqueados)
+- Interactive tooltip on hover
+
+### Bar Chart: Last 7 Days TIC Reports
+
+Stacked bar chart showing daily failures by type:
+
+```jsx
+<BarChart data={fallas7d}>
+  <Bar dataKey="olvido" name="Olvido" fill={VERDE} stackId="a" />
+  <Bar dataKey="perdida" name="Pérdida" fill={ROJO} stackId="a" />
+</BarChart>
+```
+
+**Data Structure:**
+```javascript
+fallas7d = [
+  { dia: 'Lun', olvido: 5, perdida: 1 },
+  { dia: 'Mar', olvido: 3, perdida: 0 },
+  // ...
+]
+```
+
+<Info>
+  The chart updates automatically every 30 seconds via `useAdminDashboard` hook without interrupting the user's current view.
+</Info>
+
+### Horizontal Bar Chart: Students by Program
+
+Displays distribution of students across academic programs:
+
+```jsx
+<BarChart layout="vertical" data={porPrograma}>
+  <XAxis type="number" />
+  <YAxis type="category" dataKey="programa" width={120} />
+  <Bar dataKey="total" name="Estudiantes" fill={VERDE} />
+</BarChart>
+```
+
+**Features:**
+- Dynamic height based on number of programs
+- Truncated labels with 120px width
+- Rounded bar corners for modern UI
+
+## Data Fetching
+
+The dashboard uses the `useAdminDashboard` hook to fetch data:
+
+```javascript:src/modules/admin/application/hooks/useAdminDashboard.js
+const { stats, fallas7d, porPrograma, usuarios, loading } = useAdminDashboard();
+```
+
+### Auto-Refresh System
+
+<CodeGroup>
+```javascript Full Load (with spinner)
+// Triggered on mount and manual refresh
+useEffect(() => {
+  const cargar = async () => {
+    setLoading(true);
+    const [s, f, p, u] = await Promise.all([
+      repo.getStats(),
+      repo.getFallasUltimos7Dias(),
+      repo.getEstudiantesPorPrograma(),
+      repo.getUsuarios(),
+    ]);
+    setStats(s);
+    // ...
+  };
+  cargar();
+}, [refreshKey]);
+```
+
+```javascript Silent Refresh (no spinner)
+// Every 30 seconds in background
+const refrescoSilencioso = useCallback(async () => {
+  const [s, u] = await Promise.all([
+    repo.getStats(),
+    repo.getUsuarios(),
+  ]);
+  setStats(s);
+  setUsuarios(u);
+  setUltimaActualizacion(new Date());
+}, []);
+
+useEffect(() => {
+  const intervalo = setInterval(refrescoSilencioso, 30_000);
+  return () => clearInterval(intervalo);
+}, [refrescoSilencioso]);
+```
+</CodeGroup>
+
+<Check>
+  Silent refresh updates stats and user list without showing loading spinners, preventing disruption to the administrator's workflow.
+</Check>
+
+## Color Palette
+
+The dashboard uses UCC institutional colors:
+
+```javascript
+const VERDE = '#1B6B3A';  // UCC Green - for active/positive states
+const ROJO  = '#EF4444';  // Red - for blocked/warning states
+```
+
+## Loading States
+
+Each chart section handles loading gracefully:
+
+```jsx
+{loading ? (
+  <div className="h-48 flex items-center justify-center text-gray-400 text-sm">
+    Cargando...
+  </div>
+) : (
+  <ResponsiveContainer>...</ResponsiveContainer>
+)}
+```
+
+## Empty States
+
+When no data is available:
+
+```jsx
+{porPrograma.length === 0 ? (
+  <p className="text-sm text-gray-400 py-8 text-center">
+    Sin datos de programas registrados.
+  </p>
+) : (
+  // Render chart
+)}
+```
+
+## Database Queries
+
+The dashboard data comes from these repository methods:
+
+<AccordionGroup>
+  <Accordion title="getStats()" icon="chart-simple">
+    Returns:
+    - `totalEstudiantes`: Total student count
+    - `activos`: Users with active access
+    - `bloqueados`: Users currently blocked
+    - `reportesHoy`: Failures reported today
+  </Accordion>
+
+  <Accordion title="getFallasUltimos7Dias()" icon="calendar-week">
+    Returns array of daily failure counts:
+    ```javascript
+    [
+      { dia: 'Lun', olvido: 5, perdida: 1 },
+      { dia: 'Mar', olvido: 3, perdida: 0 },
+      // ... 7 days
+    ]
+    ```
+  </Accordion>
+
+  <Accordion title="getEstudiantesPorPrograma()" icon="graduation-cap">
+    Returns student distribution:
+    ```javascript
+    [
+      { programa: 'Ingeniería de Sistemas', total: 45 },
+      { programa: 'Derecho', total: 32 },
+      // ...
+    ]
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## System Status Indicator
+
+The header displays real-time system status:
+
+```javascript
+const estadoSistema = loading
+  ? 'Cargando...'
+  : stats
+    ? `Activo — ${stats.activos} estudiante${stats.activos !== 1 ? 's' : ''} habilitado${stats.activos !== 1 ? 's' : ''}`
+    : 'Sin conexión';
+```
+
+<Warning>
+  If data fetching fails, the error state is displayed in the header as a red badge with the error message.
+</Warning>
+
+## Navigation
+
+The dashboard is accessed via the admin sidebar:
+
+```javascript
+<AdminSidebar
+  vistaActual={vista}
+  onCambiarVista={setVista}
+  estadoSistema={estadoSistema}
+  onCerrarSesion={handleCerrarSesion}
+/>
+```
+
+<Card title="Next Steps" icon="arrow-right" href="/admin/user-search">
+  Learn how to search for users and view detailed profiles
+</Card>

@@ -1,0 +1,255 @@
+---
+title: "Bulk Data Loading"
+description: "Upload and validate CSV data for semester initialization"
+icon: "upload"
+---
+
+## Overview
+
+The bulk data loading process allows administrators to import user data for a new semester using CSV files. This multi-step wizard guides you through uploading base users and assigning roles with role-specific information.
+
+## Loading Workflow
+
+The data loading process follows a 6-step wizard:
+
+<Steps>
+  <Step title="Semester Information">
+    Configure the new semester details:
+    - Semester name (e.g., "2026-1")
+    - Start date
+    - End date
+    
+    You can also add individual users manually before proceeding to bulk upload.
+  </Step>
+  
+  <Step title="Base Users (Required)">
+    Upload the **usuarios** CSV with core user information. This file is mandatory and must be loaded first.
+    
+    <Warning>
+      The base users CSV must be loaded before any role-specific files, as all other CSVs depend on these user records.
+    </Warning>
+  </Step>
+  
+  <Step title="Students (Optional)">
+    Upload the **estudiantes** CSV to assign the Student role and register academic program information.
+  </Step>
+  
+  <Step title="Employees (Optional)">
+    Upload the **empleados** CSV to assign the Employee role and register job position and department.
+  </Step>
+  
+  <Step title="Contractors (Optional)">
+    Upload the **contratistas** CSV to assign the Contractor role and register company information.
+  </Step>
+  
+  <Step title="Confirm">
+    Review the summary of all data to be imported and confirm to start the new semester.
+    
+    <Warning>
+      This action will delete all data from the previous semester and cannot be undone. Export existing data before proceeding.
+    </Warning>
+  </Step>
+</Steps>
+
+## File Upload Methods
+
+The system supports two upload methods:
+
+<CardGroup cols={2}>
+  <Card title="Click to Select" icon="mouse-pointer">
+    Click the "Elegir archivo" (Choose file) button to open the file browser and select your CSV file.
+  </Card>
+  
+  <Card title="Drag and Drop" icon="hand">
+    Drag your CSV file directly onto the upload zone. The zone will highlight when you drag a file over it.
+  </Card>
+</CardGroup>
+
+## CSV Parsing
+
+The parser automatically handles common CSV variations:
+
+- **Separators**: Both comma (`,`) and semicolon (`;`) are supported
+- **Encoding**: UTF-8 with or without BOM (Byte Order Mark)
+- **Quotes**: Double quotes around values are automatically removed
+- **Empty rows**: Rows without an `id_institucional` are automatically filtered out
+
+```javascript
+// Parsing logic from CargarCSVView.jsx:121
+function parsearCSV(texto) {
+  // Remove BOM (Excel UTF-8 adds it at the start)
+  const textoLimpio = texto.replace(/^\uFEFF/, '').trim();
+  const lineas = textoLimpio.split('\n');
+  
+  // Support ; (Excel in Spanish) or , (standard) separator
+  const separador = lineas[0].includes(';') ? ';' : ',';
+  
+  // Parse headers and data rows
+  const encabezados = lineas[0].split(separador).map(h => h.trim());
+  // ... parse data rows
+}
+```
+
+## Data Preview
+
+After uploading a file, the system displays:
+
+- **File name** and **record count**
+- **Preview table** showing the first 15 records
+- All detected columns from your CSV
+- Option to go back and select a different file
+
+<Note>
+  If your file contains more than 15 records, the interface will indicate how many additional records will be loaded (e.g., "... and 235 more records").
+</Note>
+
+## Navigation Controls
+
+### During CSV Upload Steps (1-4)
+
+- **← Back**: Return to the previous step (data is not saved)
+- **Skip**: Skip optional role assignments (Students, Employees, Contractors)
+- **Confirm →**: Accept the current file and move to the next step
+
+### Final Confirmation Step
+
+The summary screen shows:
+- Semester name and date range
+- Record counts for each data type:
+  - Users (base data)
+  - Students
+  - Employees
+  - Contractors
+
+<Warning>
+  The "Empezar semestre" (Start semester) button will:
+  1. Delete all existing users, roles, and fallas from the previous semester
+  2. Create the new semester record
+  3. Load all uploaded CSV data
+  
+  This action **cannot be undone**.
+</Warning>
+
+## Adding Individual Users
+
+Before starting the CSV upload process, you can add individual users manually:
+
+<Steps>
+  <Step title="Open Add User Panel">
+    Click the "+ Agregar usuario" button on the semester information screen.
+  </Step>
+  
+  <Step title="Enter Base Information">
+    Provide:
+    - ID Institucional (e.g., 80123456)
+    - Documento de identidad (e.g., 1001234567)
+    - Nombre completo (Full name)
+    - Select at least one role (Student, Employee, or Contractor)
+  </Step>
+  
+  <Step title="Enter Role-Specific Data">
+    For each selected role, provide the required information:
+    - **Student**: Academic program
+    - **Employee**: Job position (cargo) and department (optional)
+    - **Contractor**: Company name
+  </Step>
+  
+  <Step title="Save">
+    Click "Guardar usuario" to create the user immediately in the database.
+  </Step>
+</Steps>
+
+<Tip>
+  You can add multiple users individually before or after loading CSV files. This is useful for adding administrators or special users that aren't in the bulk data.
+</Tip>
+
+## Processing Results
+
+After confirming the data load, the system displays:
+
+- ✅ Success message with semester name
+- Total records loaded across all files
+- Breakdown by data type:
+  - **Users**: Base user records created
+  - **Students**: Student role assignments
+  - **Employees**: Employee role assignments
+  - **Contractors**: Contractor role assignments
+
+```javascript
+// From CargarCSVView.jsx:540
+const handleEmpezarSemestre = async () => {
+  await repo.iniciarNuevoSemestre(semestre.nombre, semestre.fechaInicio, semestre.fechaFin);
+  const res = {};
+  if (staged.usuarios?.length)     res.usuarios     = await repo.cargarUsuarios(staged.usuarios);
+  if (staged.estudiantes?.length)  res.estudiantes  = await repo.cargarEstudiantes(staged.estudiantes);
+  if (staged.empleados?.length)    res.empleados    = await repo.cargarEmpleados(staged.empleados);
+  if (staged.contratistas?.length) res.contratistas = await repo.cargarContratistas(staged.contratistas);
+  setResultado(res);
+}
+```
+
+## Error Handling
+
+Common errors and solutions:
+
+<AccordionGroup>
+  <Accordion title="'El archivo no tiene registros válidos'">
+    This means the CSV parser couldn't find any rows with a valid `id_institucional` value.
+    
+    **Solutions**:
+    - Verify the first row contains the exact column headers specified
+    - Ensure data rows have values in the `id_institucional` column
+    - Check that the file uses UTF-8 encoding
+  </Accordion>
+  
+  <Accordion title="'Error al leer el archivo'">
+    The file couldn't be parsed as a valid CSV.
+    
+    **Solutions**:
+    - Verify the file is a `.csv` file (not `.xlsx` or other formats)
+    - Open in a text editor to check for formatting issues
+    - Re-export from Excel using "CSV UTF-8 (Comma delimited)" format
+  </Accordion>
+  
+  <Accordion title="'La fecha de fin debe ser posterior a la de inicio'">
+    The semester end date is before or equal to the start date.
+    
+    **Solution**:
+    - Correct the date range on the semester information screen
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Test with Sample Data" icon="flask">
+    Before loading production data, test with a small CSV file containing 10-20 records to verify the format.
+  </Card>
+  
+  <Card title="Validate Before Upload" icon="circle-check">
+    Open your CSV in a spreadsheet program and verify:
+    - Headers match exactly (case-sensitive)
+    - No empty required fields
+    - ID formats are consistent
+  </Card>
+  
+  <Card title="Keep Backups" icon="floppy-disk">
+    Always export existing data before starting a new semester. Store backups in a secure location.
+  </Card>
+  
+  <Card title="Load in Order" icon="list-ol">
+    Always load base users first, then role-specific files. The system enforces this but it's good to prepare files in the correct order.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="CSV Format Reference" icon="table" href="/admin/semester/csv-format">
+    Learn about required columns and data formats for each CSV type
+  </Card>
+  
+  <Card title="Semester Cleanup" icon="broom" href="/admin/semester/cleanup">
+    Understand the end-of-semester cleanup process
+  </Card>
+</CardGroup>

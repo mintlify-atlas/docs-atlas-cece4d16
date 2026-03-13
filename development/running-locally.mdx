@@ -1,0 +1,284 @@
+---
+title: 'Running Locally'
+description: 'Start the development server and build the application'
+---
+
+## Development Server
+
+Start the application in development mode with hot module replacement (HMR):
+
+<CodeGroup>
+  ```bash npm
+  npm run dev
+  ```
+
+  ```bash yarn
+  yarn dev
+  ```
+
+  ```bash pnpm
+  pnm dev
+  ```
+</CodeGroup>
+
+The development server will:
+- Start on `http://localhost:3000`
+- Automatically open in your default browser
+- Enable hot module replacement (HMR) for instant updates
+- Display build errors and warnings in the terminal and browser
+
+<Info>
+  The port is configured in `vite.config.js`. The default port is 3000 with automatic browser opening enabled.
+</Info>
+
+## Available Scripts
+
+The following scripts are available in `package.json`:
+
+### Development
+
+```bash
+npm run dev
+```
+
+Starts the Vite development server with:
+- Fast HMR (Hot Module Replacement)
+- Port: 3000
+- Auto-open browser
+- Development mode optimizations
+
+**Vite Configuration** (`vite.config.js`):
+```javascript
+server: {
+  port: 3000,
+  open: true
+}
+```
+
+### Build for Production
+
+```bash
+npm run build
+```
+
+Builds the application for production:
+- Minifies and optimizes code
+- Generates source maps
+- Outputs to `dist/` directory
+- Tree-shakes unused code
+- Optimizes assets and images
+
+**Build Configuration** (`vite.config.js`):
+```javascript
+build: {
+  outDir: 'dist',
+  sourcemap: true
+}
+```
+
+### Preview Production Build
+
+```bash
+npm run preview
+```
+
+Serves the production build locally for testing:
+- Serves files from `dist/` directory
+- Simulates production environment
+- Useful for testing before deployment
+
+<Note>
+  You must run `npm run build` before running `npm run preview`.
+</Note>
+
+## Development Workflow
+
+### Typical Development Flow
+
+<Steps>
+  <Step title="Start the backend API">
+    Ensure your backend server is running (if applicable):
+    
+    ```bash
+    # In your backend directory
+    npm start
+    ```
+  </Step>
+
+  <Step title="Start the frontend dev server">
+    Run the development server:
+    
+    ```bash
+    npm run dev
+    ```
+    
+    The application opens at `http://localhost:3000`
+  </Step>
+
+  <Step title="Make changes">
+    Edit files in `src/` - changes appear instantly thanks to HMR
+  </Step>
+
+  <Step title="Test your changes">
+    Check the browser and terminal for errors or warnings
+  </Step>
+</Steps>
+
+### Build and Preview Flow
+
+<Steps>
+  <Step title="Build the application">
+    ```bash
+    npm run build
+    ```
+    
+    This creates optimized production files in `dist/`
+  </Step>
+
+  <Step title="Preview the build">
+    ```bash
+    npm run preview
+    ```
+    
+    Test the production build locally
+  </Step>
+
+  <Step title="Deploy">
+    Deploy the contents of the `dist/` directory to your hosting service
+  </Step>
+</Steps>
+
+## Vite Configuration
+
+The project uses Vite as the build tool with the following configuration:
+
+```javascript vite.config.js
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 3000,
+    open: true
+  },
+  build: {
+    outDir: 'dist',
+    sourcemap: true
+  }
+});
+```
+
+### Key Features
+
+- **React Plugin**: Fast Refresh support for React components
+- **Auto Port**: Development server on port 3000
+- **Auto Open**: Browser opens automatically
+- **Source Maps**: Generated for debugging production builds
+- **Output Directory**: Production files in `dist/`
+
+## Browser Support
+
+The application supports modern browsers as defined in `package.json`:
+
+### Production
+- \>0.2% market share
+- Not dead browsers
+- Not Opera Mini
+
+### Development
+- Latest Chrome
+- Latest Firefox
+- Latest Safari
+
+## Performance Tips
+
+### Development Speed
+
+1. **Use Fast Refresh**: Vite's HMR preserves component state during updates
+2. **Minimize Console Logs**: Excessive logging can slow down the dev server
+3. **Close Unused Tabs**: Browser DevTools can impact performance
+
+### Build Optimization
+
+1. **Tree Shaking**: Vite automatically removes unused code
+2. **Code Splitting**: Dynamic imports are automatically split
+3. **Asset Optimization**: Images and assets are optimized during build
+
+## Troubleshooting
+
+### Port Already in Use
+
+If port 3000 is already in use:
+
+**Option 1**: Kill the process using the port
+```bash
+# Linux/Mac
+lsof -ti:3000 | xargs kill -9
+
+# Windows
+netstat -ano | findstr :3000
+taskkill /PID <PID> /F
+```
+
+**Option 2**: Change the port in `vite.config.js`
+```javascript
+server: {
+  port: 3001,  // Use a different port
+  open: true
+}
+```
+
+### Build Errors
+
+If you encounter build errors:
+
+1. Clear Vite cache:
+   ```bash
+   rm -rf node_modules/.vite
+   ```
+
+2. Clean install dependencies:
+   ```bash
+   rm -rf node_modules package-lock.json
+   npm install
+   ```
+
+3. Check for TypeScript errors (if applicable)
+
+### Hot Reload Not Working
+
+1. Restart the dev server
+2. Clear browser cache
+3. Check file permissions
+4. Ensure files are saved properly
+
+### Slow Build Times
+
+1. Disable source maps for faster builds (remove `sourcemap: true`)
+2. Use `npm run dev` for development instead of rebuilding
+3. Check for circular dependencies
+
+## Development Tools
+
+### Browser DevTools
+
+Use React Developer Tools extension:
+- Inspect component hierarchy
+- Check props and state
+- Profile component performance
+
+### VS Code Extensions
+
+Recommended extensions:
+- ES7+ React/Redux/React-Native snippets
+- Tailwind CSS IntelliSense
+- ESLint
+- Prettier
+
+## Next Steps
+
+Now that your development environment is running:
+- [Architecture Overview](/architecture) - Understand the project structure
+- [Module Development](/development/frontend/modules) - Learn how to create new modules
+- [Styling Guide](/development/frontend/components) - Working with Tailwind CSS and UCC brand colors

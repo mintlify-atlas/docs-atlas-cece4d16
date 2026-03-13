@@ -1,0 +1,335 @@
+---
+title: 'Guía para Estudiantes'
+description: 'Aprende a usar el sistema de Control de Acceso como estudiante de la UCC'
+icon: 'graduation-cap'
+---
+
+## Introducción
+
+Bienvenido al Sistema de Control de Acceso de la Universidad Cooperativa de Colombia. Este sistema está diseñado **exclusivamente para ingresos contingentes** cuando **NO portas tu Tarjeta de Identificación Cooperativista (TIC)**.
+
+<Warning>
+  **Importante:** Este sistema SOLO se utiliza cuando olvidas o pierdes tu carnet físico. No registra ingresos normales con carnet.
+</Warning>
+
+## ¿Cómo usar el sistema?
+
+<Steps>
+  <Step title="Ingresa tu ID Institucional">
+    En la pantalla de inicio, ingresa tu **ID institucional** (ejemplo: 80123456) en el campo numérico.
+    
+    - Solo se permiten números
+    - Verifica que sea tu ID correcto antes de continuar
+    - Presiona el botón **"INGRESAR"**
+  </Step>
+
+  <Step title="Verifica tu información">
+    El sistema mostrará tu perfil con:
+    
+    - **Nombre completo**
+    - **Documento de identidad**
+    - **ID institucional**
+    - **Estado de acceso** (activo o bloqueado)
+    - **Información académica:**
+      - Programa académico
+      - Facultad
+      - Campus/sede
+      - Semestre actual
+    - **Contador de fallas acumuladas** (X/4)
+  </Step>
+
+  <Step title="Reporta el motivo">
+    Selecciona el motivo por el cual no portas tu TIC:
+    
+    - **📋 Olvidé mi TIC:** Olvidaste tu carnet en casa o en otro lugar
+    - **⚠️ Perdí mi TIC:** Tu carnet se extravió
+    
+    <Warning>
+      Ten cuidado al seleccionar el motivo. Cada opción tiene consecuencias diferentes en tu registro.
+    </Warning>
+  </Step>
+
+  <Step title="Confirma tu reporte">
+    Revisa tu selección y confirma el reporte presionando **"Confirmar"**.
+    
+    El sistema procesará tu ingreso y te mostrará:
+    - ✅ **Confirmación exitosa** del reporte
+    - Tu nuevo contador de fallas
+    - Advertencias si estás cerca del límite
+  </Step>
+</Steps>
+
+## Información mostrada en tu perfil
+
+Cuando ingreses al sistema, verás:
+
+### Datos personales
+- Nombre completo
+- Documento de identidad (cédula)
+- ID institucional
+- Correo institucional
+
+### Información académica (Estudiantes)
+- **Programa académico:** Tu carrera (ej: Ingeniería de Sistemas, Derecho)
+- **Facultad:** Facultad a la que perteneces
+- **Campus/Sede:** Bogotá, Medellín, Cali, etc.
+- **Semestre:** Semestre actual que cursas
+- **Estado académico:** Activo, inactivo o graduado
+
+### Contador de fallas
+Verás tu contador actual de fallas en formato **X/4**, donde:
+- **X** = Número de fallas acumuladas
+- **4** = Límite máximo de fallas permitidas
+
+## Sistema de fallas y advertencias
+
+### ¿Qué es una falla?
+
+Cada vez que ingresas sin tu TIC, el sistema registra una **falla**. Existen diferentes tipos:
+
+<AccordionGroup>
+  <Accordion title="🟢 Olvido (0-2 fallas)" icon="check-circle">
+    **Estado:** Normal
+    
+    - Puedes ingresar sin problemas
+    - El sistema suma +1 al contador
+    - Aún estás lejos del límite
+    
+    **Recomendación:** Recuerda traer tu TIC la próxima vez.
+  </Accordion>
+
+  <Accordion title="🟡 Olvido (3 fallas) - RIESGO" icon="triangle-exclamation">
+    **Estado:** En riesgo
+    
+    - ⚠️ **Última oportunidad**
+    - Puedes ingresar, pero verás una advertencia
+    - Si olvidas tu TIC una vez más, serás bloqueado automáticamente
+    
+    **Advertencia mostrada:**
+    ```
+    ⚠️ ADVERTENCIA:
+    Tienes 3 fallas registradas.
+    Una falla más resultará en BLOQUEO automático.
+    ```
+    
+    **Acción requerida:** Asegúrate de traer tu TIC en los próximos ingresos.
+  </Accordion>
+
+  <Accordion title="🔴 Olvido (4 fallas) - BLOQUEADO" icon="ban">
+    **Estado:** Bloqueado automáticamente
+    
+    - ❌ **Acceso denegado**
+    - No puedes ingresar a las instalaciones
+    - El bloqueo es automático
+    
+    **Mensaje mostrado:**
+    ```
+    🚫 USUARIO BLOQUEADO
+    Has alcanzado el límite de 4 fallas.
+    Debes dirigirte a la Dirección para desbloquear tu acceso.
+    ```
+    
+    **Acción requerida:** Ve a la Dirección (ver sección "Qué hacer cuando estás bloqueado").
+  </Accordion>
+
+  <Accordion title="🔴 Pérdida - BLOQUEO INMEDIATO" icon="ban">
+    **Estado:** Bloqueado inmediatamente
+    
+    - ❌ **Bloqueo instantáneo** al reportar pérdida
+    - NO incrementa el contador de fallas
+    - Medida de seguridad para evitar uso fraudulento
+    
+    **Mensaje mostrado:**
+    ```
+    🚫 ACCESO BLOQUEADO
+    Por seguridad, tu acceso ha sido bloqueado al reportar pérdida de TIC.
+    Dirígete a la Dirección para solicitar un nuevo carnet.
+    ```
+    
+    **Acción requerida:** Ve a la Dirección para tramitar un nuevo carnet.
+  </Accordion>
+</AccordionGroup>
+
+## ¿Qué hacer cuando estás bloqueado?
+
+<Warning>
+  Si tu acceso está bloqueado, **NO** podrás ingresar a las instalaciones de la Universidad hasta que un administrador te desbloquee.
+</Warning>
+
+### Pasos para desbloqueo
+
+<Steps>
+  <Step title="Dirígete a la Dirección">
+    Ve a la oficina de Dirección o al área administrativa correspondiente de tu campus.
+  </Step>
+
+  <Step title="Presenta tu situación">
+    Explica tu situación al personal administrativo:
+    
+    - **Si perdiste tu TIC:** Solicita un nuevo carnet
+    - **Si alcanzaste 4 olvidos:** Justifica la situación
+    
+    Lleva contigo:
+    - Tu documento de identidad
+    - Comprobante de matrícula (si es necesario)
+  </Step>
+
+  <Step title="Espera el desbloqueo">
+    El personal administrativo con permisos de administrador:
+    
+    - Revisará tu historial de fallas
+    - Evaluará tu justificación
+    - **Desbloqueará tu acceso** en el sistema
+    - Reiniciará tu contador de fallas a **0/4**
+  </Step>
+
+  <Step title="Verifica tu acceso">
+    Una vez desbloqueado:
+    
+    - Tu estado cambiará a **"Activo"**
+    - Podrás usar el sistema nuevamente
+    - Tu contador estará en **0/4**
+    - Se registrará quién y cuándo te desbloqueó (auditoría)
+  </Step>
+</Steps>
+
+## Historial de fallas
+
+En tu perfil puedes ver tu **historial completo de fallas** con:
+
+- **Fecha y hora** de cada reporte
+- **Motivo** (olvido o pérdida)
+- **Sede** donde se registró
+- **Observaciones** (si las hay)
+
+### Ejemplo de historial
+
+| Fecha | Motivo | Sede | Observación |
+|-------|--------|------|-------------|
+| 10/03/2026 14:30 | Olvido | Bogotá | Sin observaciones |
+| 05/03/2026 08:15 | Olvido | Bogotá | Sin observaciones |
+| 28/02/2026 16:45 | Olvido | Bogotá | Sin observaciones |
+
+## Usuarios con múltiples roles
+
+<Info>
+  Si eres estudiante Y empleado o contratista al mismo tiempo, verás información de **todos tus roles** en tu perfil.
+</Info>
+
+### Ejemplo: Estudiante + Empleado
+
+Cuando ingreses al sistema, se mostrará:
+
+**👨‍🎓 Rol: Estudiante**
+- Programa académico: Ingeniería de Sistemas
+- Facultad: Ingeniería
+- Sede: Bogotá
+- Semestre: 8
+
+**💼 Rol: Empleado**
+- Dependencia: Área Financiera
+- Cargo: Coordinador de Tesorería
+- Tipo de contrato: Prestación de servicios
+
+<Note>
+  El sistema de fallas y bloqueos aplica a **todos tus roles**. Si estás bloqueado, no podrás ingresar en ninguna de tus capacidades (estudiante, empleado, etc.).
+</Note>
+
+## Preguntas frecuentes
+
+<AccordionGroup>
+  <Accordion title="¿Qué hago si olvidé mi ID institucional?" icon="question">
+    Tu ID institucional es el número que te asignó la UCC (ejemplo: 80123456). Puedes encontrarlo en:
+    
+    - Tu correo institucional
+    - Tu portal estudiantil
+    - Comunicaciones oficiales de la universidad
+    - Tu carnet (si lo tienes)
+    
+    Si no lo recuerdas, contacta a la oficina de Admisiones o Registro Académico.
+  </Accordion>
+
+  <Accordion title="¿Puedo usar el sistema si tengo mi carnet?" icon="question">
+    **NO.** Este sistema es **exclusivamente para ingresos contingentes** cuando NO portas tu TIC.
+    
+    Si tienes tu carnet, úsalo normalmente en los puntos de acceso.
+  </Accordion>
+
+  <Accordion title="¿Qué pasa si reporto 'Pérdida' por error?" icon="question">
+    Al reportar pérdida, tu acceso será **bloqueado inmediatamente**.
+    
+    Si fue un error:
+    1. Dirígete a la Dirección de inmediato
+    2. Explica la situación
+    3. Solicita el desbloqueo
+    
+    El personal administrativo puede desbloquearte si verifican que fue un error.
+  </Accordion>
+
+  <Accordion title="¿Se reinicia el contador cada semestre?" icon="question">
+    **SÍ.** Al inicio de cada semestre:
+    
+    - Se exportan todos los datos del semestre anterior
+    - Se limpia la base de datos
+    - Se cargan los datos del nuevo semestre
+    - **Todos los contadores de fallas se reinician a 0**
+    
+    Cada semestre comienzas con 0 fallas acumuladas.
+  </Accordion>
+
+  <Accordion title="¿Qué hago si el sistema no me reconoce?" icon="question">
+    Si al ingresar tu ID institucional aparece un error "ID no encontrado":
+    
+    1. **Verifica tu ID:** Asegúrate de ingresar el número correcto
+    2. **Contacta a Admisiones:** Es posible que tus datos no estén cargados en el sistema
+    3. **Espera la actualización:** El personal administrativo puede agregar tus datos
+    
+    Esto puede ocurrir si:
+    - Eres un estudiante nuevo
+    - Acabas de matricularte
+    - Hay un error en la base de datos
+  </Accordion>
+
+  <Accordion title="¿Puedo ver mi historial de fallas?" icon="question">
+    **SÍ.** En tu perfil, debajo de tu información personal y académica, encontrarás una sección con tu **historial completo de fallas**.
+    
+    Muestra:
+    - Todas las fechas en que reportaste fallas
+    - El motivo de cada reporte (olvido o pérdida)
+    - La sede donde se registró
+    - Observaciones adicionales
+  </Accordion>
+</AccordionGroup>
+
+## Consejos y recomendaciones
+
+<CardGroup cols={2}>
+  <Card title="Siempre trae tu TIC" icon="id-card">
+    Evita acumular fallas trayendo tu Tarjeta de Identificación Cooperativista todos los días.
+  </Card>
+  
+  <Card title="Verifica tu contador" icon="gauge">
+    Revisa regularmente cuántas fallas tienes acumuladas para evitar sorpresas.
+  </Card>
+  
+  <Card title="Actúa rápido si estás en riesgo" icon="bolt">
+    Si tienes 3 fallas, asegúrate de no olvidar tu TIC en el siguiente ingreso.
+  </Card>
+  
+  <Card title="Reporta pérdidas inmediatamente" icon="shield">
+    Si pierdes tu TIC, repórtalo de inmediato para evitar uso fraudulento.
+  </Card>
+</CardGroup>
+
+## Soporte
+
+Si tienes problemas con el sistema:
+
+- 📧 **Email:** soporte@ucc.edu.co
+- 📱 **Teléfono:** +57 (1) XXX XXXX
+- 🏢 **Presencial:** Oficina de Dirección de tu campus
+
+---
+
+**Universidad Cooperativa de Colombia © 2026**  
+*Todos los derechos reservados*

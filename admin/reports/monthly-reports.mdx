@@ -1,0 +1,339 @@
+---
+title: Monthly Reports
+description: Generate and analyze monthly reports for access control failures
+---
+
+Monthly reports provide detailed analytics on access failures, blocked users, and statistics aggregated by faculty, department, and contractor companies over a calendar month period.
+
+## Report Period Selection
+
+Monthly reports use the **Mensual** period type, which calculates the full calendar month:
+
+```javascript
+// From ReportesView.jsx:50-60
+if (tipo === 'mensual') {
+  const inicio = new Date(ahora.getFullYear(), ahora.getMonth() - offset, 1);
+  inicio.setHours(0, 0, 0, 0);
+  const finMes = new Date(inicio.getFullYear(), inicio.getMonth() + 1, 0, 23, 59, 59, 999);
+  const hasta  = offset === 0 ? new Date(ahora) : finMes;
+  return {
+    desde:    inicio,
+    hasta,
+    etiqueta: inicio.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' }),
+  };
+}
+```
+
+### Period Calculation
+
+- **Current month** (offset = 0): From 1st of month at 00:00:00 to current date/time
+- **Previous month** (offset = 1): From 1st to last day (23:59:59) of previous month
+- **Label format**: "enero 2026", "febrero 2026", etc. (Spanish locale)
+
+### Navigation
+
+Use the arrow buttons to navigate between months:
+
+- **← Previous**: View older month (offset + 1)
+- **→ Next**: View newer month (offset - 1)
+- Current month indicator: Arrow button disabled when offset = 0
+
+## Failures by Month
+
+The primary metric in monthly reports is the total access failures recorded during the period.
+
+### Total Failures
+
+Displayed in the summary card:
+
+```jsx
+// From ReportesView.jsx:347-354
+<ResumenCard
+  titulo="Fallas en el período"
+  valor={reporte?.fallasPeriodo}
+  subtitulo="Reportes sin carnet"
+  icono="⚠️"
+  color={{ bg: 'bg-yellow-50', text: 'text-yellow-500' }}
+/>
+```
+
+**Interpretation:**
+- Each failure represents one instance of a user entering without their ID card
+- Failures can be due to: forgotten, lost, or stolen cards
+- High failure counts may indicate need for awareness campaigns
+
+### Failures by User Type
+
+Monthly reports break down failures by user role:
+
+- **Student failures** (`fallasEstudiantes`): Students who forgot/lost cards
+- **Employee failures** (`fallasEmpleados`): Staff access failures
+- **Contractor failures** (`fallasContratistas`): External contractor failures
+
+**Export data includes:**
+```javascript
+// From ReportesView.jsx:179-181
+['Total fallas', 'Fallas de estudiantes', 'Fallas de empleados', 'Fallas de contratistas'],
+[reporte.fallasPeriodo ?? 0, reporte.fallasEstudiantes ?? 0, 
+ reporte.fallasEmpleados ?? 0, reporte.fallasContratistas ?? 0]
+```
+
+### Daily Breakdown
+
+View failures distributed across each day of the month:
+
+```javascript
+// Data structure: reporte.fallasPorDia
+[
+  { dia: "2024-01-15", total: 12 },
+  { dia: "2024-01-16", total: 8 },
+  { dia: "2024-01-17", total: 15 }
+]
+```
+
+**Visualization:**
+- Horizontal bar chart using Recharts library (ReportesView.jsx:365-400)
+- Each day shown as a separate bar
+- Color-coded using GANTT_COLORS palette
+- Interactive tooltips show exact counts
+- Chart height adapts to number of days: `Math.max(fallasPorDia.length * 42, 120)`
+
+## Blocked Users Report
+
+While not directly shown in the main report view, blocked users data can be analyzed through:
+
+### Blocked User Indicators
+
+Users become blocked when:
+
+1. **4th failure due to forgotten card** → Automatic block
+2. **Card reported lost** → Immediate block
+3. **Card reported stolen** → Immediate block
+4. **Administrative action** → Manual block
+
+See the [Block Management](/admin/blocking-management) documentation for details on blocked users.
+
+### Monthly Block Statistics
+
+To analyze blocks in a monthly context:
+
+- Query `Historial_Bloqueos` table for blocks in date range
+- Filter by `fecha_bloqueo` within month period
+- Group by `motivo_bloqueo` (limit_fallas, perdida_carnet, robo_carnet)
+
+## Statistics by Faculty
+
+Monthly reports show student distribution and failures aggregated by academic faculty.
+
+### Students by Academic Program
+
+**Display:**
+```jsx
+// From ReportesView.jsx:405-413
+<GanttChart
+  titulo="Estudiantes por programa"
+  subtitulo="Distribución de matriculados activos"
+  filas={reporte?.porPrograma}
+  colKey="programa"
+  colLabel="Programa académico"
+  loading={loading}
+  colorOffset={0}
+/>
+```
+
+**Data structure:**
+```javascript
+porPrograma: [
+  { programa: "Ingeniería de Sistemas", total: 245 },
+  { programa: "Derecho", total: 189 },
+  { programa: "Administración de Empresas", total: 156 }
+]
+```
+
+### Failures by Academic Program
+
+Track which programs have the most card-related failures:
+
+**Export sheet:** "Fallas por programa"
+```javascript
+// From ReportesView.jsx:214-224
+if (reporte.fallasPorPrograma?.length) {
+  const wsFP = XLSX.utils.json_to_sheet(
+    reporte.fallasPorPrograma.map(r => ({
+      'Programa académico': r.programa,
+      'Fallas en el período': r.fallas_total,
+    }))
+  );
+  wsFP['!cols'] = [{ wch: 40 }, { wch: 22 }];
+  XLSX.utils.book_append_sheet(wb, wsFP, 'Fallas por programa');
+}
+```
+
+**Use cases:**
+- Identify programs needing targeted awareness campaigns
+- Correlate failure rates with program size
+- Track improvement over time by program
+
+### Employees by Department
+
+**Display:**
+```jsx
+// From ReportesView.jsx:414-422
+<GanttChart
+  titulo="Empleados por dependencia"
+  subtitulo="Distribución del personal vinculado"
+  filas={reporte?.porDependencia}
+  colKey="dependencia"
+  colLabel="Dependencia"
+  loading={loading}
+  colorOffset={5}
+/>
+```
+
+**Data structure:**
+```javascript
+porDependencia: [
+  { dependencia: "Tesorería", total: 12 },
+  { dependencia: "Admisiones", total: 8 },
+  { dependencia: "Biblioteca", total: 15 }
+]
+```
+
+### Failures by Department
+
+Analyze employee failure patterns by department:
+
+**Export sheet:** "Fallas por dependencia"
+```javascript
+// From ReportesView.jsx:226-236
+if (reporte.fallasPorDependencia?.length) {
+  const wsFD = XLSX.utils.json_to_sheet(
+    reporte.fallasPorDependencia.map(r => ({
+      Dependencia: r.dependencia,
+      'Fallas en el período': r.fallas_total,
+    }))
+  );
+  wsFD['!cols'] = [{ wch: 35 }, { wch: 22 }];
+  XLSX.utils.book_append_sheet(wb, wsFD, 'Fallas por dependencia');
+}
+```
+
+### Failures by Contractor Company
+
+Track failures for external contractors grouped by company:
+
+**Export sheet:** "Fallas por empresa"
+```javascript
+// From ReportesView.jsx:238-248
+if (reporte.fallasPorEmpresa?.length) {
+  const wsFE = XLSX.utils.json_to_sheet(
+    reporte.fallasPorEmpresa.map(r => ({
+      Empresa: r.empresa,
+      'Fallas en el período': r.fallas_total,
+    }))
+  );
+  wsFE['!cols'] = [{ wch: 35 }, { wch: 22 }];
+  XLSX.utils.book_append_sheet(wb, wsFE, 'Fallas por empresa');
+}
+```
+
+## Report Examples
+
+### Example 1: Current Month Report
+
+**Period:** March 2026 (offset = 0)
+**Date range:** 2026-03-01 00:00:00 to 2026-03-13 15:30:00 (current time)
+
+**Summary cards:**
+- 🎓 Students: 1,247
+- 💼 Employees: 89
+- 🏢 Contractors: 34
+- ⚠️ Failures: 47
+
+**Top programs (by student count):**
+1. Ingeniería de Sistemas: 245 students
+2. Derecho: 189 students
+3. Administración de Empresas: 156 students
+
+**Failures by day (sample):**
+- 2026-03-10: 8 failures
+- 2026-03-11: 5 failures
+- 2026-03-12: 12 failures
+- 2026-03-13: 3 failures (incomplete day)
+
+### Example 2: Previous Month Report
+
+**Period:** February 2026 (offset = 1)
+**Date range:** 2026-02-01 00:00:00 to 2026-02-28 23:59:59 (complete month)
+
+**Summary cards:**
+- 🎓 Students: 1,238
+- 💼 Employees: 87
+- 🏢 Contractors: 32
+- ⚠️ Failures: 124
+
+**Programs with most failures:**
+1. Ingeniería de Sistemas: 32 failures
+2. Medicina: 18 failures
+3. Arquitectura: 15 failures
+
+**Departments with most failures:**
+1. Biblioteca: 12 failures
+2. Admisiones: 8 failures
+3. Tesorería: 6 failures
+
+## Exporting Monthly Reports
+
+Click the **"Descargar Excel"** button to export the current month's report:
+
+```jsx
+// From ReportesView.jsx:310-319
+<button
+  onClick={exportarExcel}
+  disabled={!reporte || loading || exportando}
+  className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border border-green-700 text-green-700 hover:bg-green-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+>
+  {exportando ? 'Exportando...' : 'Descargar Excel'}
+</button>
+```
+
+**Generated filename:**
+```javascript
+const fecha = new Date().toISOString().slice(0, 10);
+XLSX.writeFile(wb, `informe_ucc_${periodo}_${fecha}.xlsx`);
+// Example: informe_ucc_mensual_2026-03-13.xlsx
+```
+
+See [Excel Export](/admin/reports/export-excel) for complete details on the export format.
+
+## Best Practices
+
+### Monthly Review Workflow
+
+1. **At month end**: Generate complete month report (offset = 1)
+2. **Export to Excel**: Download for record-keeping
+3. **Analyze trends**: Compare with previous months
+4. **Identify issues**: High-failure programs/departments
+5. **Take action**: Awareness campaigns, policy updates
+
+### Key Metrics to Monitor
+
+- **Failure rate**: (Total failures / Total users) × 100
+- **Repeat offenders**: Users with 3+ failures (at risk of blocking)
+- **Block rate**: New blocks this month
+- **Top programs**: Programs with disproportionate failures
+
+### Recommendations
+
+- Review monthly reports at administrative meetings
+- Track failure trends over multiple months
+- Set target failure rates by user type
+- Implement interventions for high-failure groups
+- Archive Excel exports for historical analysis
+
+## Related Documentation
+
+- [Reports Overview](/admin/reports/overview) - General reporting system
+- [Excel Export](/admin/reports/export-excel) - Export functionality details
+- [User Management](/admin/user-search) - Managing users with failures
+- [Block Management](/admin/blocking-management) - Handling blocked users

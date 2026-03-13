@@ -1,0 +1,180 @@
+---
+title: 'Environment Configuration'
+description: 'Configure environment variables for local development'
+---
+
+## Overview
+
+The UCC Control de Acceso application uses environment variables to configure API endpoints and other settings. All environment variables for Vite must be prefixed with `VITE_` to be accessible in the client-side code.
+
+## Environment File Setup
+
+After cloning the repository, create your environment configuration file:
+
+```bash
+cp .env.example .env
+```
+
+This creates a `.env` file in the root directory where you can configure your local settings.
+
+## Environment Variables
+
+### API Backend URL
+
+The primary configuration is the backend API URL:
+
+```bash .env
+VITE_API_URL=http://localhost:3000
+```
+
+<ParamField path="VITE_API_URL" type="string" required>
+  The base URL for the backend API server. In development, this typically points to your local backend server.
+  
+  **Examples:**
+  - Local development: `http://localhost:3000`
+  - Staging: `https://api-staging.ucc.edu.co`
+  - Production: `https://api.ucc.edu.co`
+</ParamField>
+
+### Optional Variables
+
+Additional environment variables can be configured as needed:
+
+```bash .env
+# Environment identifier
+VITE_ENVIRONMENT=development
+
+# API timeout (milliseconds)
+VITE_API_TIMEOUT=10000
+
+# Enable debug logging
+VITE_DEBUG=true
+```
+
+## Complete .env.example Structure
+
+The project includes a `.env.example` file with the following structure:
+
+```bash .env.example
+# API Backend URL
+VITE_API_URL=http://localhost:3000
+
+# Otras variables de entorno
+# VITE_ENVIRONMENT=development
+```
+
+## Accessing Environment Variables
+
+In your React components and modules, access environment variables using `import.meta.env`:
+
+```javascript
+// Access the API URL
+const apiUrl = import.meta.env.VITE_API_URL;
+
+// Example usage in API client
+import axios from 'axios';
+
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+```
+
+## Backend Integration
+
+The application expects the backend API to be available at the configured `VITE_API_URL`. The main authentication endpoint is:
+
+```
+POST /api/auth/login
+```
+
+**Request body:**
+```json
+{
+  "id_institucional": "80123456"
+}
+```
+
+**Response:**
+```json
+{
+  "usuario": {
+    "id": 1,
+    "id_institucional": "80123456",
+    "nombre": "Juan Pérez",
+    "rol": "estudiante"
+  }
+}
+```
+
+## API Client Configuration
+
+The application includes an HTTP client (`apiClient.js`) with the following features:
+
+- **Base URL**: Automatically uses `VITE_API_URL`
+- **Timeout**: 10 seconds default
+- **JWT Interceptors**: Automatically attaches authentication tokens
+- **Error Handling**: Global error handling with automatic redirects
+- **401 Redirect**: Automatic redirect to login on unauthorized requests
+
+## Environment-Specific Configuration
+
+### Development
+
+```bash .env.development
+VITE_API_URL=http://localhost:3000
+VITE_ENVIRONMENT=development
+VITE_DEBUG=true
+```
+
+### Production
+
+```bash .env.production
+VITE_API_URL=https://api.ucc.edu.co
+VITE_ENVIRONMENT=production
+VITE_DEBUG=false
+```
+
+Vite automatically loads the appropriate `.env` file based on the mode:
+- `npm run dev` uses `.env.development`
+- `npm run build` uses `.env.production`
+
+## Security Considerations
+
+<Warning>
+  Never commit your `.env` file to version control. The `.gitignore` file should include `.env` to prevent accidental commits.
+</Warning>
+
+- Only use `VITE_` prefixed variables for non-sensitive configuration
+- Backend API keys and secrets should remain on the server
+- Client-side environment variables are visible in the browser
+- Use server-side authentication for sensitive operations
+
+## Troubleshooting
+
+### Environment Variables Not Loading
+
+1. Ensure variable names start with `VITE_`
+2. Restart the development server after changing `.env`
+3. Check that `.env` is in the project root directory
+
+### API Connection Issues
+
+1. Verify the backend server is running at the configured URL
+2. Check CORS settings on the backend
+3. Ensure `VITE_API_URL` doesn't have a trailing slash
+4. Test the API endpoint directly with curl or Postman
+
+```bash
+# Test the API connection
+curl http://localhost:3000/api/health
+```
+
+## Next Steps
+
+Once your environment is configured:
+- [Running Locally](/development/running-locally) - Start the development server
+- [API Integration](/development/backend/authentication) - Learn about API endpoints

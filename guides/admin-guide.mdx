@@ -1,0 +1,846 @@
+---
+title: 'Guía para Administradores'
+description: 'Manual completo del panel administrativo del Sistema de Control de Acceso'
+icon: 'shield-halved'
+---
+
+## Introducción
+
+Bienvenido al **Panel Administrativo** del Sistema de Control de Acceso de la Universidad Cooperativa de Colombia. Esta guía está dirigida a empleados con permisos administrativos especiales.
+
+<Warning>
+  **Acceso restringido:** Solo empleados autorizados con nivel de **Director**, **Supervisor** o **Vigilancia** pueden acceder a este panel.
+</Warning>
+
+## Niveles de acceso administrativo
+
+### Tipos de administradores
+
+<AccordionGroup>
+  <Accordion title="Director" icon="crown">
+    **Nivel de acceso:** Completo
+    
+    **Permisos:**
+    - ✅ Acceso total al dashboard
+    - ✅ Gestión completa de usuarios
+    - ✅ Bloquear y desbloquear usuarios
+    - ✅ Generar y exportar reportes
+    - ✅ Cargar datos masivos desde CSV
+    - ✅ Iniciar nuevo semestre
+    - ✅ Ver auditoría completa del sistema
+    - ✅ Gestionar otros administradores
+    
+    **Responsabilidades:**
+    - Supervisión general del sistema
+    - Toma de decisiones sobre bloqueos críticos
+    - Gestión de datos semestrales
+    - Generación de reportes ejecutivos
+  </Accordion>
+
+  <Accordion title="Supervisor" icon="user-shield">
+    **Nivel de acceso:** Alto
+    
+    **Permisos:**
+    - ✅ Acceso al dashboard
+    - ✅ Gestión de usuarios
+    - ✅ Bloquear y desbloquear usuarios
+    - ✅ Generar reportes básicos
+    - ❌ NO puede cargar CSV
+    - ❌ NO puede iniciar nuevo semestre
+    - ✅ Ver auditoría de sus acciones
+    
+    **Responsabilidades:**
+    - Gestión diaria de usuarios
+    - Resolución de bloqueos
+    - Supervisión de fallas y reportes
+  </Accordion>
+
+  <Accordion title="Vigilancia" icon="eye">
+    **Nivel de acceso:** Básico
+    
+    **Permisos:**
+    - ✅ Ver dashboard de estadísticas
+    - ✅ Buscar información de usuarios
+    - ✅ Ver historial de fallas
+    - ❌ NO puede bloquear/desbloquear
+    - ❌ NO puede generar reportes
+    - ❌ NO puede modificar datos
+    
+    **Responsabilidades:**
+    - Consulta de información de usuarios
+    - Verificación de estados de acceso
+    - Apoyo en puntos de ingreso
+  </Accordion>
+</AccordionGroup>
+
+## Acceso al panel administrativo
+
+<Steps>
+  <Step title="Credenciales de acceso">
+    Como administrador, tienes credenciales especiales:
+    
+    - **ID institucional:** Tu ID de empleado (ej: ADMIN001)
+    - **Contraseña:** Proporcionada por el área de TI o Dirección
+    
+    <Note>
+      Si no tienes credenciales, contacta al área de TI o a tu Director.
+    </Note>
+  </Step>
+
+  <Step title="Ingreso al sistema">
+    1. Accede a la URL del panel administrativo
+    2. Ingresa tu ID institucional
+    3. Ingresa tu contraseña
+    4. Presiona **"Iniciar Sesión"**
+  </Step>
+
+  <Step title="Verifica tus permisos">
+    Al ingresar, verás:
+    
+    - Tu nombre y nivel de acceso en la parte superior
+    - Las secciones disponibles según tus permisos
+    - Estado del sistema (activo, número de usuarios habilitados)
+  </Step>
+</Steps>
+
+## Dashboard principal (Resumen)
+
+### Métricas en tiempo real
+
+Al ingresar al panel, verás cuatro tarjetas con estadísticas clave:
+
+<CardGroup cols={2}>
+  <Card title="Total Estudiantes" icon="graduation-cap">
+    Número total de estudiantes registrados en el sistema actual.
+  </Card>
+  
+  <Card title="Activos" icon="circle-check">
+    Usuarios con acceso habilitado (pueden ingresar normalmente).
+  </Card>
+  
+  <Card title="Bloqueados" icon="ban">
+    Usuarios con acceso bloqueado (requieren atención administrativa).
+  </Card>
+  
+  <Card title="Reportes TIC hoy" icon="triangle-exclamation">
+    Número de fallas reportadas en el día actual.
+  </Card>
+</CardGroup>
+
+### Gráficas del dashboard
+
+#### 1. Estado de carnets (Gráfica circular)
+
+- **Activos (verde):** Usuarios con acceso habilitado
+- **Bloqueados (rojo):** Usuarios con acceso denegado
+
+Esta gráfica te da una visión rápida de la salud del sistema. Un número alto de bloqueados puede indicar:
+- Fin de semestre (muchos estudiantes con 4 fallas)
+- Necesidad de campaña de concientización
+- Problemas con carnets (pérdidas masivas)
+
+#### 2. Reportes TIC — Últimos 7 días (Gráfica de barras)
+
+- **Olvido (verde):** Fallas por olvido cada día
+- **Pérdida (rojo):** Fallas por pérdida cada día
+
+Usa esta gráfica para:
+- Identificar patrones (¿más olvidos los lunes?)
+- Detectar días con reportes anormales
+- Planificar campañas de recordatorio
+
+#### 3. Estudiantes por programa (Gráfica horizontal)
+
+Muestra la distribución de estudiantes por programa académico:
+- Ingeniería de Sistemas
+- Derecho
+- Administración de Empresas
+- etc.
+
+Útil para:
+- Reportes por facultad
+- Análisis de fallas por programa
+- Estadísticas institucionales
+
+## Gestión de usuarios
+
+### Búsqueda de usuarios
+
+En la sección **"Usuarios"**, puedes buscar y gestionar todos los usuarios del sistema.
+
+<Steps>
+  <Step title="Accede a la sección Usuarios">
+    Haz clic en **"Usuarios"** en el menú lateral del panel.
+  </Step>
+
+  <Step title="Usa el buscador">
+    El buscador te permite encontrar usuarios por:
+    
+    - **Nombre completo:** Busca "Juan Pérez"
+    - **ID institucional:** Busca "80123456"
+    - **Rol:** Busca "estudiante", "empleado", "contratista"
+    - **Información adicional:** Programa, dependencia, empresa
+    
+    El buscador es en **tiempo real** (no necesitas presionar Enter).
+  </Step>
+
+  <Step title="Filtra por estado">
+    Usa los filtros rápidos:
+    
+    - **Todos:** Muestra todos los usuarios
+    - **Activos:** Solo usuarios con acceso habilitado
+    - **Bloqueados:** Solo usuarios bloqueados
+  </Step>
+
+  <Step title="Revisa la información">
+    La tabla muestra:
+    
+    | Columna | Descripción |
+    |---------|-------------|
+    | **ID** | ID institucional |
+    | **Nombre completo** | Nombre del usuario |
+    | **Rol(es)** | Estudiante, Empleado, Contratista (con badges de color) |
+    | **Info** | Programa académico, dependencia o empresa |
+    | **Fallas** | Contador X/4 (en rojo si tiene 3+) |
+    | **Estado** | Activo (verde) o Bloqueado (rojo) |
+    | **Acciones** | Botones de Bloquear/Desbloquear |
+  </Step>
+</Steps>
+
+### Información detallada de un usuario
+
+Al hacer clic en un usuario, verás:
+
+<AccordionGroup>
+  <Accordion title="Datos personales" icon="user">
+    - Nombre completo
+    - Documento de identidad
+    - ID institucional
+    - Correo institucional
+    - Estado general (activo/bloqueado)
+    - Total de fallas acumuladas
+  </Accordion>
+
+  <Accordion title="Roles activos" icon="tags">
+    Todos los roles del usuario con su información específica:
+    
+    - **Estudiante:** Programa, facultad, sede, semestre, estado académico
+    - **Empleado:** Dependencia, cargo, tipo de contrato, fecha de ingreso
+    - **Contratista:** Empresa, NIT, área asignada, fechas de contrato
+  </Accordion>
+
+  <Accordion title="Historial de fallas" icon="clock-rotate-left">
+    Tabla completa con todas las fallas registradas:
+    
+    - Fecha y hora exacta
+    - Motivo (olvido, pérdida, robo)
+    - Sede donde se registró
+    - Vigilante que registró (si aplica)
+    - Observaciones
+  </Accordion>
+
+  <Accordion title="Historial de bloqueos" icon="lock">
+    Si el usuario ha sido bloqueado previamente:
+    
+    - Fecha del bloqueo
+    - Motivo del bloqueo (4 olvidos, pérdida, robo, administrativo)
+    - Observación del bloqueo
+    - Fecha de desbloqueo (si ya fue desbloqueado)
+    - Quién desbloqueó
+    - Observación del desbloqueo
+    - Estado (activo o resuelto)
+  </Accordion>
+</AccordionGroup>
+
+## Bloquear y desbloquear usuarios
+
+### Bloquear un usuario
+
+<Warning>
+  Bloquear a un usuario manualmente debe hacerse solo en casos justificados (situaciones disciplinarias, pérdida de carnet no reportada, etc.).
+</Warning>
+
+<Steps>
+  <Step title="Encuentra al usuario">
+    Busca al usuario en la sección **"Usuarios"**.
+  </Step>
+
+  <Step title="Haz clic en 'Bloquear'">
+    En la columna de **Acciones**, haz clic en el botón rojo **"Bloquear"**.
+  </Step>
+
+  <Step title="Proporciona una justificación">
+    Aparecerá un modal solicitando:
+    
+    - **Motivo del bloqueo:** Selecciona (ej: administrativo)
+    - **Observación:** Escribe una justificación clara y detallada
+    
+    **Ejemplo:**
+    ```
+    Bloqueo administrativo solicitado por la Dirección debido a
+    situación disciplinaria pendiente. Ref: Caso #2026-045.
+    ```
+  </Step>
+
+  <Step title="Confirma el bloqueo">
+    - Revisa la información
+    - Haz clic en **"Confirmar Bloqueo"**
+    - El sistema:
+      - Cambiará el estado del usuario a **"bloqueado"**
+      - Registrará quién bloqueó y cuándo
+      - Guardará la observación
+      - Creará un registro en auditoría
+  </Step>
+</Steps>
+
+### Desbloquear un usuario
+
+<Info>
+  Desbloquear a un usuario es la acción administrativa más común. Hazlo después de evaluar su situación.
+</Info>
+
+<Steps>
+  <Step title="Encuentra al usuario bloqueado">
+    Usa el filtro **"Bloqueados"** para ver solo usuarios bloqueados.
+  </Step>
+
+  <Step title="Revisa su historial">
+    **Antes de desbloquear, verifica:**
+    
+    - ¿Por qué fue bloqueado? (4 olvidos, pérdida, robo, administrativo)
+    - ¿Cuándo fue bloqueado?
+    - ¿Es recurrente? (¿ha sido bloqueado múltiples veces?)
+    - ¿Tiene justificación válida?
+    
+    <Warning>
+      Si el usuario tiene un patrón de bloqueos recurrentes, considera hablar con él antes de desbloquear.
+    </Warning>
+  </Step>
+
+  <Step title="Haz clic en 'Desbloquear'">
+    En la columna de **Acciones**, haz clic en el botón verde **"Desbloquear"**.
+  </Step>
+
+  <Step title="Proporciona una observación">
+    Aparecerá un modal solicitando:
+    
+    - **Observación del desbloqueo:** Escribe por qué autorizas el desbloqueo
+    
+    **Ejemplos:**
+    ```
+    Usuario presentó nuevo carnet. Se autoriza desbloqueo.
+    ```
+    ```
+    Justificación válida por situación personal. Se reinicia contador.
+    ```
+    ```
+    Desbloqueo por inicio de nuevo semestre. Política institucional.
+    ```
+  </Step>
+
+  <Step title="Confirma el desbloqueo">
+    - Haz clic en **"Confirmar Desbloqueo"**
+    - El sistema automáticamente:
+      - Cambiará el estado a **"activo"**
+      - **Reiniciará el contador de fallas a 0/4**
+      - Registrará tu ID de administrador
+      - Guardará la fecha/hora del desbloqueo
+      - Creará un registro en auditoría
+  </Step>
+</Steps>
+
+<Note>
+  **Importante:** Al desbloquear, el contador de fallas **siempre** se reinicia a 0. Esto le da al usuario un "borrón y cuenta nueva".
+</Note>
+
+## Generación de reportes
+
+### Tipos de reportes disponibles
+
+En la sección **"Informes"**, puedes generar reportes detallados.
+
+<AccordionGroup>
+  <Accordion title="Reporte Diario" icon="calendar-day">
+    **Contenido:**
+    - Fallas registradas hoy
+    - Usuarios que reportaron
+    - Motivos (olvido vs. pérdida)
+    - Distribución por sede
+    
+    **Uso:** Seguimiento diario, reportes a Dirección.
+  </Accordion>
+
+  <Accordion title="Reporte Semanal" icon="calendar-week">
+    **Contenido:**
+    - Fallas de los últimos 7 días
+    - Tendencias por día de la semana
+    - Usuarios en riesgo (3 fallas)
+    - Nuevos bloqueos
+    
+    **Uso:** Análisis de patrones semanales.
+  </Accordion>
+
+  <Accordion title="Reporte Mensual" icon="calendar">
+    **Contenido:**
+    - Resumen del mes completo
+    - Total de fallas por tipo
+    - Usuarios bloqueados y desbloqueados
+    - Estadísticas por facultad/programa
+    - Comparativa con mes anterior
+    
+    **Uso:** Reportes ejecutivos, análisis institucional.
+  </Accordion>
+
+  <Accordion title="Reporte Semestral" icon="calendar-days">
+    **Contenido:**
+    - Resumen completo del semestre
+    - Total de fallas acumuladas
+    - Usuarios más recurrentes
+    - Análisis por facultad y programa
+    - Tendencias del semestre
+    - Comparativa con semestre anterior
+    
+    **Uso:** Evaluación semestral, planificación estratégica.
+    
+    <Warning>
+      **Importante:** Genera este reporte ANTES de iniciar un nuevo semestre, ya que los datos se eliminarán.
+    </Warning>
+  </Accordion>
+</AccordionGroup>
+
+### Cómo generar un reporte
+
+<Steps>
+  <Step title="Accede a Informes">
+    Haz clic en **"Informes"** en el menú lateral.
+  </Step>
+
+  <Step title="Selecciona el período">
+    Usa los filtros para elegir:
+    
+    - **Diario:** Hoy
+    - **Semanal:** Últimos 7 días (o semana específica)
+    - **Mensual:** Mes actual o mes anterior
+    - **Semestral:** Semestre completo
+  </Step>
+
+  <Step title="Configura opciones (opcional)">
+    Dependiendo del reporte, puedes filtrar por:
+    
+    - Facultad específica
+    - Programa académico
+    - Sede/campus
+    - Tipo de usuario (estudiante, empleado, contratista)
+  </Step>
+
+  <Step title="Genera y descarga">
+    - Haz clic en **"Generar Reporte"**
+    - Espera a que el sistema procese los datos
+    - Descarga el archivo en formato:
+      - **Excel (.xlsx):** Para análisis y tablas dinámicas
+      - **PDF:** Para presentaciones y archivo oficial
+      - **CSV:** Para importar a otros sistemas
+  </Step>
+</Steps>
+
+### Contenido de los reportes Excel
+
+Los reportes en Excel incluyen múltiples hojas:
+
+**Hoja 1: Resumen General**
+- Estadísticas clave del período
+- Gráficas resumen
+
+**Hoja 2: Listado de Usuarios**
+- Todos los usuarios con sus datos
+- Estado de acceso
+- Contador de fallas
+
+**Hoja 3: Registro de Fallas**
+- Todas las fallas del período
+- Fecha, hora, usuario, motivo, sede
+
+**Hoja 4: Usuarios Bloqueados**
+- Listado de usuarios bloqueados en el período
+- Motivos y fechas
+
+**Hoja 5: Estadísticas por Facultad** (solo estudiantes)
+- Distribución por programa
+- Fallas por facultad
+
+## Carga de datos semestrales (CSV)
+
+<Warning>
+  **Solo para Directores:** Esta función está restringida al nivel de Director debido a su impacto crítico en el sistema.
+</Warning>
+
+### ¿Cuándo cargar datos desde CSV?
+
+- **Inicio de cada semestre académico**
+- Después de limpiar la base de datos
+- Cuando hay actualizaciones masivas de datos
+
+### Formato del archivo CSV
+
+El archivo CSV debe tener las siguientes columnas:
+
+```csv
+id_institucional,documento_identidad,nombre_completo,correo_institucional,rol,programa_academico,facultad,semestre,dependencia,cargo,empresa_proveedora,nit_proveedor,area_asignada,sede
+```
+
+**Ejemplo de filas:**
+
+```csv
+80123456,1234567890,Juan Pérez Gómez,juan.perez@ucc.edu.co,Estudiante,Ingeniería de Sistemas,Ingeniería,8,,,,,Bogotá
+80234567,2345678901,María López,maria.lopez@ucc.edu.co,Estudiante|Empleado,Derecho,Ciencias Jurídicas,6,Tesorería,Asistente,,,Medellín
+90345678,3456789012,Carlos Ramírez,carlos.ramirez@empresa.com,Contratista,,,,,,,Empresa Limpieza S.A.S,900123456,Mantenimiento,Cali
+```
+
+<Note>
+  **Nota:** Los roles múltiples se separan con `|` (pipe). Si un usuario es Estudiante Y Empleado, escribe: `Estudiante|Empleado`
+</Note>
+
+### Proceso de carga masiva
+
+<Steps>
+  <Step title="Prepara el archivo CSV">
+    - Descarga la plantilla desde el sistema
+    - Completa todos los datos requeridos
+    - Verifica que no haya errores de formato
+    - Guarda como CSV (UTF-8)
+    
+    **Validaciones importantes:**
+    - IDs institucionales únicos
+    - Documentos de identidad únicos
+    - Correos institucionales únicos
+    - Fechas en formato correcto (YYYY-MM-DD)
+  </Step>
+
+  <Step title="Accede a la sección 'Semestre'">
+    En el menú lateral, haz clic en **"Semestre"**.
+    
+    Verás opciones para:
+    - Cargar nuevo semestre
+    - Limpiar base de datos
+    - Iniciar período semestral
+  </Step>
+
+  <Step title="Inicia el proceso de nuevo semestre">
+    <Warning>
+      **¡ATENCIÓN!** Este proceso eliminará todos los datos del semestre anterior (excepto administradores y auditoría). Asegúrate de haber exportado todos los reportes necesarios.
+    </Warning>
+    
+    1. Haz clic en **"Iniciar Nuevo Semestre"**
+    2. El sistema mostrará una advertencia
+    3. Confirma que has exportado todos los datos
+    4. Ingresa el código del nuevo semestre (ej: "2026-2")
+    5. Confirma la acción
+  </Step>
+
+  <Step title="Carga el archivo CSV">
+    1. Haz clic en **"Cargar CSV"**
+    2. Selecciona tu archivo
+    3. El sistema mostrará un **preview** de los datos a cargar
+    4. Revisa que todo esté correcto
+    5. Confirma la carga
+    
+    El sistema procesará:
+    - Cada usuario (Tabla: Usuarios)
+    - Asignación de roles (Tabla: Usuario_Roles)
+    - Información de estudiantes (Tabla: Info_Estudiantes)
+    - Información de empleados (Tabla: Info_Empleados)
+    - Información de contratistas (Tabla: Info_Contratistas)
+  </Step>
+
+  <Step title="Verifica la carga">
+    Una vez completada la carga:
+    
+    - Verás un resumen de registros creados
+    - Revisa las estadísticas del dashboard
+    - Busca algunos usuarios de prueba
+    - Confirma que todos los datos estén correctos
+    
+    Si hay errores, puedes:
+    - Corregir usuarios individuales manualmente
+    - O repetir el proceso (limpiar y cargar nuevamente)
+  </Step>
+</Steps>
+
+### Errores comunes en la carga CSV
+
+<AccordionGroup>
+  <Accordion title="IDs duplicados" icon="copy">
+    **Error:** "ID institucional ya existe"
+    
+    **Causa:** El CSV tiene dos usuarios con el mismo ID institucional.
+    
+    **Solución:** Revisa el CSV y asegúrate de que todos los IDs sean únicos.
+  </Accordion>
+
+  <Accordion title="Formato de fecha incorrecto" icon="calendar">
+    **Error:** "Fecha inválida en fecha_inicio_contrato"
+    
+    **Causa:** Las fechas deben estar en formato ISO (YYYY-MM-DD).
+    
+    **Solución:** Cambia fechas como "15/03/2026" a "2026-03-15".
+  </Accordion>
+
+  <Accordion title="Columnas faltantes" icon="table">
+    **Error:** "Columna programa_academico no encontrada"
+    
+    **Causa:** El CSV no tiene todas las columnas requeridas.
+    
+    **Solución:** Descarga la plantilla oficial y usa esa estructura exacta.
+  </Accordion>
+
+  <Accordion title="Roles inválidos" icon="user-tag">
+    **Error:** "Rol 'Profesor' no es válido"
+    
+    **Causa:** Solo se permiten: Estudiante, Empleado, Contratista.
+    
+    **Solución:** Usa exactamente esos nombres (respetando mayúsculas).
+  </Accordion>
+</AccordionGroup>
+
+## Auditoría del sistema
+
+### ¿Qué se registra en auditoría?
+
+Todas las acciones administrativas importantes:
+
+- Bloqueos y desbloqueos de usuarios
+- Cambios en datos de usuarios
+- Inicio de nuevo semestre
+- Carga masiva de datos
+- Accesos al panel administrativo
+- Generación de reportes sensibles
+
+### Información de auditoría
+
+Cada registro de auditoría incluye:
+
+- **Fecha y hora exacta** de la acción
+- **Quién:** ID del administrador que realizó la acción
+- **Qué:** Tipo de acción (bloqueo, desbloqueo, modificación, etc.)
+- **Sobre quién:** ID del usuario afectado
+- **Tabla afectada:** Qué tabla de la base de datos se modificó
+- **Datos anteriores:** Estado antes de la acción (JSON)
+- **Datos nuevos:** Estado después de la acción (JSON)
+- **IP address:** Dirección IP desde donde se realizó la acción
+- **Observaciones:** Justificación o notas del administrador
+
+### Cómo consultar la auditoría
+
+<Steps>
+  <Step title="Accede a Auditoría">
+    (Si tu nivel de acceso lo permite) Ve a la sección **"Auditoría"** en el menú.
+  </Step>
+
+  <Step title="Filtra por criterios">
+    Puedes filtrar por:
+    
+    - **Fecha:** Rango de fechas específico
+    - **Administrador:** Ver solo acciones de un admin específico
+    - **Usuario afectado:** Ver todas las acciones sobre un usuario
+    - **Tipo de acción:** Solo bloqueos, solo desbloqueos, etc.
+  </Step>
+
+  <Step title="Revisa los detalles">
+    Cada fila muestra:
+    
+    - Fecha/hora
+    - Administrador
+    - Acción realizada
+    - Usuario afectado
+    - Observación
+    
+    Haz clic en una fila para ver el detalle completo con los datos JSON.
+  </Step>
+</Steps>
+
+## Responsabilidades de los administradores
+
+### Como Director
+
+<CardGroup cols={2}>
+  <Card title="Supervisión general" icon="eye">
+    Monitorear el estado del sistema y las métricas diarias.
+  </Card>
+  
+  <Card title="Gestión semestral" icon="calendar">
+    Coordinar el inicio de semestre, exportar datos y cargar CSV.
+  </Card>
+  
+  <Card title="Reportes ejecutivos" icon="chart-line">
+    Generar y presentar reportes a la Dirección de la UCC.
+  </Card>
+  
+  <Card title="Casos críticos" icon="triangle-exclamation">
+    Resolver situaciones complejas de bloqueos y gestión de usuarios.
+  </Card>
+</CardGroup>
+
+### Como Supervisor
+
+<CardGroup cols={2}>
+  <Card title="Gestión diaria" icon="clock">
+    Atender solicitudes de desbloqueo y consultas de usuarios.
+  </Card>
+  
+  <Card title="Monitoreo de fallas" icon="gauge">
+    Identificar usuarios en riesgo (3 fallas) y tomar acción preventiva.
+  </Card>
+  
+  <Card title="Reportes básicos" icon="file">
+    Generar reportes semanales y mensuales para seguimiento.
+  </Card>
+  
+  <Card title="Comunicación" icon="comments">
+    Coordinarse con vigilancia y áreas administrativas.
+  </Card>
+</CardGroup>
+
+### Como Vigilancia
+
+<CardGroup cols={2}>
+  <Card title="Consulta de usuarios" icon="magnifying-glass">
+    Verificar el estado de acceso de usuarios en los puntos de ingreso.
+  </Card>
+  
+  <Card title="Validación de TIC" icon="id-card">
+    Confirmar que el usuario corresponde con la información del sistema.
+  </Card>
+  
+  <Card title="Comunicación de incidencias" icon="walkie-talkie">
+    Reportar situaciones anómalas a los supervisores.
+  </Card>
+  
+  <Card title="Apoyo en reportes" icon="hands-helping">
+    Ayudar a usuarios a reportar su TIC en el sistema.
+  </Card>
+</CardGroup>
+
+## Buenas prácticas administrativas
+
+### Desbloqueos
+
+- ✅ **Siempre** solicita justificación al usuario antes de desbloquear
+- ✅ Escribe observaciones claras y completas
+- ✅ Verifica si el usuario es reincidente antes de desbloquear
+- ✅ Si el bloqueo fue por pérdida, confirma que tiene nuevo carnet
+- ❌ NO desbloquees sin conocer el motivo del bloqueo
+- ❌ NO desbloquees por favoritismo o presión
+
+### Reportes
+
+- ✅ Genera reportes semestrales **ANTES** de iniciar nuevo semestre
+- ✅ Archiva los reportes en un repositorio seguro
+- ✅ Comparte reportes mensuales con la Dirección
+- ✅ Usa los datos para identificar tendencias y tomar decisiones
+- ❌ NO compartas reportes con datos sensibles públicamente
+
+### Seguridad
+
+- ✅ **Nunca** compartas tus credenciales de administrador
+- ✅ Cierra sesión al terminar tu turno
+- ✅ Usa contraseñas seguras y cámbialas periódicamente
+- ✅ Reporta accesos no autorizados inmediatamente
+- ❌ NO accedas al panel desde computadores públicos
+
+### Gestión de datos
+
+- ✅ Valida los datos antes de cargar un CSV masivo
+- ✅ Haz backup de datos antes de limpiar la base de datos
+- ✅ Verifica que la información de usuarios sea correcta
+- ✅ Corrige errores de datos prontamente
+- ❌ NO modifiques datos sin justificación
+
+## Preguntas frecuentes (Administradores)
+
+<AccordionGroup>
+  <Accordion title="¿Puedo desbloquear a todos los usuarios al inicio de semestre?" icon="question">
+    **NO es necesario.**
+    
+    Cuando usas la función **"Iniciar Nuevo Semestre"**:
+    - Todos los datos del semestre anterior se eliminan
+    - Se cargan datos nuevos desde el CSV
+    - Todos los usuarios empiezan con 0 fallas y estado "activo"
+    
+    Los desbloqueos individuales son para casos durante el semestre.
+  </Accordion>
+
+  <Accordion title="¿Qué hago si un usuario reporta información incorrecta?" icon="question">
+    **Pasos:**
+    
+    1. Busca al usuario en la sección "Usuarios"
+    2. Haz clic en "Editar" (si tienes permisos)
+    3. Corrige los datos incorrectos
+    4. Guarda los cambios
+    5. El sistema registrará la modificación en auditoría
+    
+    Si no tienes permisos de edición, contacta a un Director.
+  </Accordion>
+
+  <Accordion title="¿Puedo ver qué hizo otro administrador?" icon="question">
+    **Depende de tu nivel:**
+    
+    - **Director:** SÍ, puedes ver todas las acciones de todos los administradores en Auditoría
+    - **Supervisor:** Solo tus propias acciones y las de tu equipo (si está configurado)
+    - **Vigilancia:** NO tienes acceso a auditoría
+  </Accordion>
+
+  <Accordion title="¿Qué hago si el sistema está caído o lento?" icon="question">
+    **Acciones:**
+    
+    1. Verifica tu conexión a internet
+    2. Intenta refrescar la página (F5)
+    3. Si persiste, contacta al área de TI:
+       - Email: soporte.ti@ucc.edu.co
+       - Teléfono: +57 (1) XXX XXXX ext. 1234
+    4. Reporta el problema con detalles:
+       - ¿Qué estabas haciendo?
+       - ¿Qué error aparece?
+       - ¿Desde cuándo ocurre?
+  </Accordion>
+
+  <Accordion title="¿Puedo generar un reporte de un período específico?" icon="question">
+    **SÍ.**
+    
+    En la sección de Informes, puedes:
+    - Seleccionar fechas personalizadas
+    - Ejemplo: Del 1 de febrero al 15 de febrero de 2026
+    - Aplicar filtros adicionales (facultad, programa, etc.)
+    - Generar el reporte con ese rango exacto
+  </Accordion>
+</AccordionGroup>
+
+## Soporte técnico para administradores
+
+Si tienes problemas técnicos o dudas:
+
+### Soporte de primer nivel
+- 📧 **Email:** admin.controlacceso@ucc.edu.co
+- 📱 **Teléfono:** +57 (1) XXX XXXX ext. 5678
+- 💬 **Chat interno:** Disponible en el panel (esquina inferior derecha)
+
+### Soporte TI (problemas técnicos)
+- 📧 **Email:** soporte.ti@ucc.edu.co
+- 📱 **Teléfono:** +57 (1) XXX XXXX ext. 1234
+- 🏢 **Presencial:** Oficina de TI, Edificio Administrativo
+
+### Escalamiento
+
+**Para Supervisores y Vigilancia:**
+- Contacta al Director del sistema
+
+**Para Directores:**
+- Contacta al área de TI o a la Dirección General
+
+---
+
+**Universidad Cooperativa de Colombia © 2026**  
+*Sistema de Control de Acceso — Manual para Administradores*
+
+<Note>
+  Este manual es confidencial y de uso exclusivo para personal autorizado con permisos administrativos.
+</Note>

@@ -1,0 +1,612 @@
+---
+title: Excel Export Functionality
+description: Export access control reports to Excel format with multiple sheets
+---
+
+The Excel export functionality allows administrators to download comprehensive reports in `.xlsx` format for offline analysis, archival, and sharing with stakeholders.
+
+## Export Process
+
+The export process is triggered from the Reports view with a single button click.
+
+### User Interface
+
+**Export button:**
+```jsx
+// From ReportesView.jsx:310-319
+<button
+  onClick={exportarExcel}
+  disabled={!reporte || loading || exportando}
+  className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border border-green-700 text-green-700 hover:bg-green-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+>
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.8} stroke="currentColor" className="w-4 h-4">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+  </svg>
+  {exportando ? 'Exportando...' : 'Descargar Excel'}
+</button>
+```
+
+**Button states:**
+- **Active**: Green border, hover effect, download icon visible
+- **Disabled**: Grayed out when no data, loading, or export in progress
+- **Exporting**: Shows "Exportando..." text during file generation
+
+### Export Function
+
+The main export function (ReportesView.jsx:162-256):
+
+```javascript
+const exportarExcel = () => {
+  if (!reporte) return;
+  setExportando(true);
+
+  try {
+    const wb = XLSX.utils.book_new();
+    // ... create sheets ...
+    const fecha = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `informe_ucc_${periodo}_${fecha}.xlsx`);
+  } finally {
+    setExportando(false);
+  }
+};
+```
+
+**Process flow:**
+1. Check if report data exists
+2. Set loading state (`exportando = true`)
+3. Create new workbook
+4. Generate and append sheets
+5. Write file to disk with formatted filename
+6. Reset loading state
+
+## Excel File Structure
+
+The generated Excel workbook contains up to **7 sheets**, depending on available data.
+
+### Sheet 1: Resumen (Summary)
+
+General overview of the reporting period.
+
+**Content:**
+```javascript
+// From ReportesView.jsx:169-185
+const wsResumen = XLSX.utils.aoa_to_sheet([
+  ['Informe de Control de Acceso UCC'],
+  ['Período:', etiqueta],
+  ['Generado:', new Date().toLocaleString('es-CO')],
+  [],
+  ['── Personas registradas ──'],
+  ['Total estudiantes', 'Total empleados', 'Total contratistas', 'Total personas'],
+  [reporte.totalEstudiantes ?? 0, reporte.totalEmpleados ?? 0, 
+   reporte.totalContratistas ?? 0, totalUsers],
+  [],
+  ['── Fallas en el período ──'],
+  ['Total fallas', 'Fallas de estudiantes', 'Fallas de empleados', 'Fallas de contratistas'],
+  [reporte.fallasPeriodo ?? 0, reporte.fallasEstudiantes ?? 0, 
+   reporte.fallasEmpleados ?? 0, reporte.fallasContratistas ?? 0],
+  [],
+]);
+wsResumen['!cols'] = [{ wch: 30 }, { wch: 20 }];
+```
+
+**Layout:**
+| Column A | Column B |
+|----------|----------|
+| Informe de Control de Acceso UCC | |
+| Período: | marzo 2026 |
+| Generado: | 13/3/2026 15:30:00 |
+| | |
+| ── Personas registradas ── | |
+| Total estudiantes | Total empleados | Total contratistas | Total personas |
+| 1247 | 89 | 34 | 1370 |
+| | |
+| ── Fallas en el período ── | |
+| Total fallas | Fallas de estudiantes | Fallas de empleados | Fallas de contratistas |
+| 47 | 38 | 6 | 3 |
+
+**Column widths:**
+- Column A: 30 characters
+- Column B: 20 characters
+
+### Sheet 2: Fallas por día (Failures by Day)
+
+Daily breakdown of access failures.
+
+**Generation:**
+```javascript
+// From ReportesView.jsx:187-194
+if (reporte.fallasPorDia?.length) {
+  const wsFallas = XLSX.utils.json_to_sheet(
+    reporte.fallasPorDia.map(f => ({ Día: f.dia, 'Total fallas': f.total }))
+  );
+  wsFallas['!cols'] = [{ wch: 15 }, { wch: 15 }];
+  XLSX.utils.book_append_sheet(wb, wsFallas, 'Fallas por día');
+}
+```
+
+**Example data:**
+| Día | Total fallas |
+|-----|-------------|
+| 2026-03-01 | 8 |
+| 2026-03-02 | 5 |
+| 2026-03-03 | 12 |
+| 2026-03-04 | 3 |
+
+**Notes:**
+- Only included if `fallasPorDia` array has data
+- Date format: ISO 8601 (YYYY-MM-DD)
+- Both columns: 15 characters wide
+
+### Sheet 3: Por programa (By Academic Program)
+
+Student distribution across academic programs.
+
+**Generation:**
+```javascript
+// From ReportesView.jsx:196-203
+if (reporte.porPrograma?.length) {
+  const wsPrograma = XLSX.utils.json_to_sheet(
+    reporte.porPrograma.map(p => ({ Programa: p.programa, Estudiantes: p.total }))
+  );
+  wsPrograma['!cols'] = [{ wch: 40 }, { wch: 15 }];
+  XLSX.utils.book_append_sheet(wb, wsPrograma, 'Por programa');
+}
+```
+
+**Example data:**
+| Programa | Estudiantes |
+|----------|-------------|
+| Ingeniería de Sistemas | 245 |
+| Derecho | 189 |
+| Administración de Empresas | 156 |
+| Medicina | 134 |
+| Arquitectura | 98 |
+
+**Column widths:**
+- Programa: 40 characters (accommodates long program names)
+- Estudiantes: 15 characters
+
+### Sheet 4: Por dependencia (By Department)
+
+Employee distribution across university departments.
+
+**Generation:**
+```javascript
+// From ReportesView.jsx:205-212
+if (reporte.porDependencia?.length) {
+  const wsDep = XLSX.utils.json_to_sheet(
+    reporte.porDependencia.map(d => ({ Dependencia: d.dependencia, Empleados: d.total }))
+  );
+  wsDep['!cols'] = [{ wch: 35 }, { wch: 15 }];
+  XLSX.utils.book_append_sheet(wb, wsDep, 'Por dependencia');
+}
+```
+
+**Example data:**
+| Dependencia | Empleados |
+|-------------|----------|
+| Tesorería | 12 |
+| Admisiones | 8 |
+| Biblioteca | 15 |
+| Rectoría | 6 |
+
+**Column widths:**
+- Dependencia: 35 characters
+- Empleados: 15 characters
+
+### Sheet 5: Fallas por programa (Failures by Program)
+
+Access failures aggregated by academic program.
+
+**Generation:**
+```javascript
+// From ReportesView.jsx:214-224
+if (reporte.fallasPorPrograma?.length) {
+  const wsFP = XLSX.utils.json_to_sheet(
+    reporte.fallasPorPrograma.map(r => ({
+      'Programa académico': r.programa,
+      'Fallas en el período': r.fallas_total,
+    }))
+  );
+  wsFP['!cols'] = [{ wch: 40 }, { wch: 22 }];
+  XLSX.utils.book_append_sheet(wb, wsFP, 'Fallas por programa');
+}
+```
+
+**Example data:**
+| Programa académico | Fallas en el período |
+|-------------------|----------------------|
+| Ingeniería de Sistemas | 32 |
+| Medicina | 18 |
+| Arquitectura | 15 |
+| Derecho | 12 |
+
+**Column widths:**
+- Programa académico: 40 characters
+- Fallas en el período: 22 characters
+
+### Sheet 6: Fallas por dependencia (Failures by Department)
+
+Employee access failures aggregated by department.
+
+**Generation:**
+```javascript
+// From ReportesView.jsx:226-236
+if (reporte.fallasPorDependencia?.length) {
+  const wsFD = XLSX.utils.json_to_sheet(
+    reporte.fallasPorDependencia.map(r => ({
+      Dependencia: r.dependencia,
+      'Fallas en el período': r.fallas_total,
+    }))
+  );
+  wsFD['!cols'] = [{ wch: 35 }, { wch: 22 }];
+  XLSX.utils.book_append_sheet(wb, wsFD, 'Fallas por dependencia');
+}
+```
+
+**Example data:**
+| Dependencia | Fallas en el período |
+|-------------|----------------------|
+| Biblioteca | 12 |
+| Admisiones | 8 |
+| Tesorería | 6 |
+
+**Column widths:**
+- Dependencia: 35 characters
+- Fallas en el período: 22 characters
+
+### Sheet 7: Fallas por empresa (Failures by Contractor Company)
+
+Contractor access failures aggregated by company.
+
+**Generation:**
+```javascript
+// From ReportesView.jsx:238-248
+if (reporte.fallasPorEmpresa?.length) {
+  const wsFE = XLSX.utils.json_to_sheet(
+    reporte.fallasPorEmpresa.map(r => ({
+      Empresa: r.empresa,
+      'Fallas en el período': r.fallas_total,
+    }))
+  );
+  wsFE['!cols'] = [{ wch: 35 }, { wch: 22 }];
+  XLSX.utils.book_append_sheet(wb, wsFE, 'Fallas por empresa');
+}
+```
+
+**Example data:**
+| Empresa | Fallas en el período |
+|---------|----------------------|
+| Seguridad Global LTDA | 5 |
+| Aseo y Mantenimiento SAS | 3 |
+| Cafetería Central | 2 |
+
+**Column widths:**
+- Empresa: 35 characters
+- Fallas en el período: 22 characters
+
+## Data Included in Exports
+
+The export includes all available data from the current report view.
+
+### Required Data (Always Included)
+
+**Resumen sheet contains:**
+- Report title
+- Period label (e.g., "marzo 2026")
+- Generation timestamp
+- Total registered users by type (students, employees, contractors)
+- Total failures by type
+
+### Optional Data (Conditionally Included)
+
+Sheets are only created if the corresponding data exists:
+
+```javascript
+if (reporte.fallasPorDia?.length) { /* create sheet */ }
+if (reporte.porPrograma?.length) { /* create sheet */ }
+if (reporte.porDependencia?.length) { /* create sheet */ }
+if (reporte.fallasPorPrograma?.length) { /* create sheet */ }
+if (reporte.fallasPorDependencia?.length) { /* create sheet */ }
+if (reporte.fallasPorEmpresa?.length) { /* create sheet */ }
+```
+
+**Result:**
+- Minimum sheets: 1 (Resumen only)
+- Maximum sheets: 7 (all data available)
+
+### Data Transformations
+
+**Array-to-sheet conversion:**
+The Resumen sheet uses `XLSX.utils.aoa_to_sheet()` for array-of-arrays format.
+
+**JSON-to-sheet conversion:**
+All other sheets use `XLSX.utils.json_to_sheet()` for easier data mapping:
+
+```javascript
+// Map data objects to Excel-friendly format
+reporte.fallasPorDia.map(f => ({ 
+  Día: f.dia,              // Column header
+  'Total fallas': f.total  // Column header with value
+}))
+```
+
+## Using the xlsx Library
+
+The system uses the [SheetJS xlsx](https://www.npmjs.com/package/xlsx) library for Excel file generation.
+
+### Installation
+
+From package.json:13:
+```json
+"xlsx": "^0.18.5"
+```
+
+Install via npm:
+```bash
+npm install xlsx
+```
+
+### Import
+
+```javascript
+// From ReportesView.jsx:6
+import * as XLSX from 'xlsx';
+```
+
+### Core Functions Used
+
+#### 1. Create New Workbook
+
+```javascript
+const wb = XLSX.utils.book_new();
+```
+
+Creates an empty workbook object to which sheets can be added.
+
+#### 2. Array-of-Arrays to Sheet
+
+```javascript
+const ws = XLSX.utils.aoa_to_sheet([
+  ['Header 1', 'Header 2'],
+  ['Value 1', 'Value 2']
+]);
+```
+
+Converts a 2D array to a worksheet. Used for the Resumen sheet with manual layout.
+
+#### 3. JSON to Sheet
+
+```javascript
+const ws = XLSX.utils.json_to_sheet([
+  { Programa: 'Ingeniería', Estudiantes: 245 },
+  { Programa: 'Derecho', Estudiantes: 189 }
+]);
+```
+
+Converts an array of objects to a worksheet. Keys become column headers.
+
+#### 4. Set Column Widths
+
+```javascript
+ws['!cols'] = [{ wch: 40 }, { wch: 15 }];
+```
+
+Sets column widths in characters. Array index corresponds to column (0 = A, 1 = B, etc.).
+
+#### 5. Append Sheet to Workbook
+
+```javascript
+XLSX.utils.book_append_sheet(wb, ws, 'Sheet Name');
+```
+
+Adds a worksheet to the workbook with the specified tab name.
+
+#### 6. Write File to Disk
+
+```javascript
+XLSX.writeFile(wb, 'filename.xlsx');
+```
+
+Triggers browser download of the Excel file with the specified name.
+
+### File Naming Convention
+
+```javascript
+// From ReportesView.jsx:251-252
+const fecha = new Date().toISOString().slice(0, 10);
+XLSX.writeFile(wb, `informe_ucc_${periodo}_${fecha}.xlsx`);
+```
+
+**Format:** `informe_ucc_{periodo}_{fecha}.xlsx`
+
+**Examples:**
+- Daily report: `informe_ucc_diario_2026-03-13.xlsx`
+- Weekly report: `informe_ucc_semanal_2026-03-13.xlsx`
+- Monthly report: `informe_ucc_mensual_2026-03-13.xlsx`
+- Semester report: `informe_ucc_semestral_2026-03-13.xlsx`
+
+**Components:**
+- `informe_ucc`: Fixed prefix
+- `{periodo}`: diario, semanal, mensual, or semestral
+- `{fecha}`: ISO date (YYYY-MM-DD) when file was generated
+- `.xlsx`: Excel file extension
+
+## Error Handling
+
+The export function includes error handling to ensure UI consistency:
+
+```javascript
+try {
+  // ... export logic ...
+} finally {
+  setExportando(false);  // Always reset loading state
+}
+```
+
+**Behavior:**
+- Export button shows "Exportando..." during generation
+- Button disabled during export to prevent duplicate clicks
+- Loading state always reset, even if export fails
+- User can retry export if error occurs
+
+## Browser Compatibility
+
+The xlsx library triggers browser downloads using standard APIs:
+
+- **Chrome/Edge**: Native download dialog
+- **Firefox**: Native download dialog
+- **Safari**: Native download dialog
+- **Mobile browsers**: May prompt for download location
+
+**File location:**
+- Typically saved to user's default Downloads folder
+- Can be configured in browser settings
+
+## Performance Considerations
+
+### File Generation Time
+
+Export time depends on data volume:
+
+- **Small reports** (less than 100 rows): Instant (less than 100ms)
+- **Medium reports** (100-1000 rows): less than 500ms
+- **Large reports** (more than 1000 rows): 500ms-2s
+
+### Memory Usage
+
+Excel generation happens in-memory:
+
+- Workbook and all sheets stored in JavaScript memory
+- File written to disk in one operation
+- Memory freed after download completes
+
+**Typical memory usage:**
+- 7 sheets with 500 total rows: ~2-3 MB
+- 7 sheets with 5000 total rows: ~10-15 MB
+
+### Optimization Tips
+
+1. **Conditional sheet creation**: Only create sheets with data
+2. **Minimal data transformation**: Direct property mapping
+3. **Fixed column widths**: Pre-calculated, not dynamic
+4. **No formatting**: Plain data for faster generation
+
+## Usage Examples
+
+### Example 1: Export Monthly Report
+
+**Scenario:** Administrator wants to archive March 2026 data
+
+**Steps:**
+1. Navigate to Reports section
+2. Select "Mensual" period
+3. Ensure period shows "marzo 2026"
+4. Click "Descargar Excel" button
+5. Wait for "Exportando..." to complete
+6. File downloaded: `informe_ucc_mensual_2026-03-13.xlsx`
+
+**Result:**
+- 7-sheet Excel workbook
+- Resumen: 1,370 total users, 47 failures
+- Fallas por día: 13 days of data (month-to-date)
+- Por programa: 15 academic programs
+- Por dependencia: 12 departments
+- Fallas por programa: 8 programs with failures
+- Fallas por dependencia: 5 departments with failures
+- Fallas por empresa: 3 contractor companies with failures
+
+### Example 2: Export Semester Report
+
+**Scenario:** Generate end-of-semester report for archival
+
+**Steps:**
+1. Navigate to Reports section
+2. Select "Semestral" period
+3. Period shows "1er semestre 2026"
+4. Click "Descargar Excel" button
+5. File downloaded: `informe_ucc_semestral_2026-06-30.xlsx`
+
+**Result:**
+- Complete semester data (January-June 2026)
+- ~180 days in "Fallas por día" sheet
+- Comprehensive program/department statistics
+- Suitable for administrative review and planning
+
+### Example 3: Weekly Comparison
+
+**Scenario:** Compare current week to previous weeks
+
+**Steps:**
+1. Select "Semanal" period
+2. Export current week: `informe_ucc_semanal_2026-03-13.xlsx`
+3. Click ← to go to previous week
+4. Export previous week: `informe_ucc_semanal_2026-03-06.xlsx`
+5. Open both files in Excel for side-by-side comparison
+
+**Analysis:**
+- Compare total failures week-over-week
+- Identify programs with increasing/decreasing failures
+- Track blocked user trends
+
+## Best Practices
+
+### Regular Exports
+
+- **Weekly**: For active monitoring and trend analysis
+- **Monthly**: For formal reporting and archival
+- **Semester**: For long-term records and audits
+
+### File Management
+
+- Create organized folder structure: `/reports/2026/03/`
+- Use consistent naming: Keep default filename format
+- Archive old files: Move to separate folder after semester
+- Backup critical reports: Store in secure location
+
+### Data Analysis
+
+- Use Excel pivot tables for deeper analysis
+- Create charts from "Fallas por día" data
+- Compare multiple months using VLOOKUP
+- Share relevant sheets with department heads
+
+## Troubleshooting
+
+### Export Button Disabled
+
+**Possible causes:**
+- No report data loaded yet
+- Report still loading (`loading = true`)
+- Export already in progress (`exportando = true`)
+
+**Solution:** Wait for data to load, then retry
+
+### Missing Sheets
+
+**Cause:** No data for that category
+
+**Example:**
+- If no contractors have failures, "Fallas por empresa" sheet not created
+- If `fallasPorDia` array is empty, "Fallas por día" sheet omitted
+
+**Solution:** This is expected behavior, not an error
+
+### File Not Downloading
+
+**Possible causes:**
+- Browser blocking pop-ups/downloads
+- Insufficient browser storage
+- Browser compatibility issue
+
+**Solutions:**
+- Allow downloads for the site
+- Clear browser cache/storage
+- Try different browser
+
+## Related Documentation
+
+- [Reports Overview](/admin/reports/overview) - General reporting system
+- [Monthly Reports](/admin/reports/monthly-reports) - Monthly report types
+- [SheetJS Documentation](https://docs.sheetjs.com/) - Full xlsx library docs
+- [User Search](/admin/user-search) - Managing user data

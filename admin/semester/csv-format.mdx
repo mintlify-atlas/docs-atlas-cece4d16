@@ -1,0 +1,386 @@
+---
+title: "CSV Format Specification"
+description: "Required columns and data formats for bulk data import"
+icon: "file-csv"
+---
+
+## Overview
+
+This guide specifies the exact format required for each CSV file type used in semester data loading. All files must use UTF-8 encoding and include a header row with exact column names.
+
+## File Requirements
+
+<CardGroup cols={3}>
+  <Card title="Encoding" icon="language">
+    UTF-8 (with or without BOM)
+  </Card>
+  
+  <Card title="Separator" icon="grip-lines-vertical">
+    Comma (`,`) or Semicolon (`;`)
+  </Card>
+  
+  <Card title="Header Row" icon="heading">
+    First row must contain exact column names
+  </Card>
+</CardGroup>
+
+<Tip>
+  When exporting from Excel, use **"CSV UTF-8 (Comma delimited) (*.csv)"** format to ensure proper encoding.
+</Tip>
+
+## Base Users CSV (Required)
+
+This file contains the core information for all users and **must be loaded first**.
+
+### Column Specification
+
+<ParamField path="id_institucional" type="string" required>
+  Institutional ID assigned by UCC (e.g., `80123456`).
+  
+  This is the unique identifier used for login and must be unique across all users.
+</ParamField>
+
+<ParamField path="documento_identidad" type="string" required>
+  National ID document number (e.g., `1001234567`).
+  
+  Must be unique across all users.
+</ParamField>
+
+<ParamField path="nombre_completo" type="string" required>
+  Full name of the user (e.g., `Juan Pérez Gómez`).
+</ParamField>
+
+### Example
+
+```csv
+id_institucional,documento_identidad,nombre_completo
+80123456,1001234567,Juan Pérez Gómez
+80234567,1001234568,María López Rodríguez
+80345678,1001234569,Carlos Martínez Sánchez
+```
+
+### Interface Configuration
+
+```javascript
+// From CargarCSVView.jsx:141
+{
+  key: 'usuarios',
+  label: 'Usuarios base',
+  descripcion: 'Carga los datos personales base. Debe hacerse primero — los demás CSV dependen de este.',
+  obligatorio: true,
+  columnas: [
+    { key: 'id_institucional',    label: 'ID Institucional', req: true,  ejemplo: '80123456'         },
+    { key: 'documento_identidad', label: 'Documento',        req: true,  ejemplo: '1001234567'       },
+    { key: 'nombre_completo',     label: 'Nombre completo',  req: true,  ejemplo: 'Juan Perez Gomez' },
+  ]
+}
+```
+
+## Students CSV (Optional)
+
+Assigns the Student role and registers academic program information.
+
+### Column Specification
+
+<ParamField path="id_institucional" type="string" required>
+  Must match an ID from the base users file (e.g., `80123456`).
+</ParamField>
+
+<ParamField path="programa_academico" type="string" required>
+  Academic program name (e.g., `Ingeniería de Sistemas`).
+</ParamField>
+
+### Example
+
+```csv
+id_institucional,programa_academico
+80123456,Ingeniería de Sistemas
+80234567,Derecho
+80345678,Administración de Empresas
+80456789,Psicología
+80789012,Ingeniería Industrial
+```
+
+### Interface Configuration
+
+```javascript
+// From CargarCSVView.jsx:156
+{
+  key: 'estudiantes',
+  label: 'Estudiantes',
+  descripcion: 'Asigna el rol Estudiante y registra el programa académico de cada persona.',
+  obligatorio: false,
+  columnas: [
+    { key: 'id_institucional',   label: 'ID Institucional',   req: true, ejemplo: '80123456'               },
+    { key: 'programa_academico', label: 'Programa académico', req: true, ejemplo: 'Ingeniería de Sistemas' },
+  ]
+}
+```
+
+## Employees CSV (Optional)
+
+Assigns the Employee role and registers job position and department.
+
+### Column Specification
+
+<ParamField path="id_institucional" type="string" required>
+  Must match an ID from the base users file (e.g., `80567890`).
+</ParamField>
+
+<ParamField path="cargo" type="string" required>
+  Job position or title (e.g., `Coordinador de Caja`).
+</ParamField>
+
+<ParamField path="dependencia" type="string">
+  Department or unit (e.g., `Tesorería`). This field is optional.
+</ParamField>
+
+### Example
+
+```csv
+id_institucional,cargo,dependencia
+80567890,Coordinador de Caja,Tesorería
+80901234,Director de Admisiones,Admisiones y Registro
+80345678,Auxiliar de Biblioteca,Biblioteca
+```
+
+<Note>
+  A user can have both Student and Employee roles. In the example file, user `80345678` appears in both the students and employees CSVs.
+</Note>
+
+### Interface Configuration
+
+```javascript
+// From CargarCSVView.jsx:169
+{
+  key: 'empleados',
+  label: 'Empleados',
+  descripcion: 'Asigna el rol Empleado y registra cargo y dependencia.',
+  obligatorio: false,
+  columnas: [
+    { key: 'id_institucional', label: 'ID Institucional', req: true,  ejemplo: '80567890'            },
+    { key: 'cargo',            label: 'Cargo',            req: true,  ejemplo: 'Coordinador de Caja' },
+    { key: 'dependencia',      label: 'Dependencia',      req: false, ejemplo: 'Tesorería'           },
+  ]
+}
+```
+
+## Contractors CSV (Optional)
+
+Assigns the Contractor role and registers company information.
+
+### Column Specification
+
+<ParamField path="id_institucional" type="string" required>
+  Must match an ID from the base users file (e.g., `80678901`).
+</ParamField>
+
+<ParamField path="empresa" type="string" required>
+  Name of the contracting company (e.g., `Sistemas Avanzados SAS`).
+</ParamField>
+
+### Example
+
+```csv
+id_institucional,empresa
+80678901,Sistemas Avanzados SAS
+80112233,Seguridad Total Ltda
+80445566,Servicios de Limpieza S.A.
+```
+
+### Interface Configuration
+
+```javascript
+// From CargarCSVView.jsx:183
+{
+  key: 'contratistas',
+  label: 'Contratistas',
+  descripcion: 'Asigna el rol Contratista y registra la empresa.',
+  obligatorio: false,
+  columnas: [
+    { key: 'id_institucional', label: 'ID Institucional', req: true, ejemplo: '80678901'               },
+    { key: 'empresa',          label: 'Empresa',          req: true, ejemplo: 'Sistemas Avanzados SAS' },
+  ]
+}
+```
+
+## Multi-Role Format (Legacy)
+
+The example file `ejemplo_carga_semestral.csv` demonstrates an alternative all-in-one format where roles are specified using pipe-separated values.
+
+### Complete Column List
+
+```csv
+id_institucional,documento_identidad,nombre_completo,correo_institucional,rol,programa_academico,facultad,semestre,dependencia,cargo,empresa_proveedora,nit_proveedor,area_asignada,sede
+```
+
+### Multi-Role Example
+
+```csv
+id_institucional,documento_identidad,nombre_completo,correo_institucional,rol,programa_academico,facultad,semestre,dependencia,cargo,empresa_proveedora,nit_proveedor,area_asignada,sede
+80123456,1001234567,Juan Pérez Gómez,juan.perez@ucc.edu.co,Estudiante,Ingeniería de Sistemas,Facultad de Ingeniería,8,,,,,Bogotá
+80234567,1001234568,María López Rodríguez,maria.lopez@ucc.edu.co,Estudiante,Derecho,Facultad de Derecho,6,,,,,Bogotá
+80345678,1001234569,Carlos Martínez Sánchez,carlos.martinez@ucc.edu.co,Estudiante|Empleado,Administración de Empresas,Facultad de Ciencias Económicas,10,Biblioteca,Auxiliar de Biblioteca,,,Bogotá
+80567890,1001234571,Luis Gómez Castro,luis.gomez@ucc.edu.co,Empleado,,,Tesorería,Coordinador de Caja,,,Bogotá
+80678901,1001234572,Sandra Morales Díaz,sandra.morales@ucc.edu.co,Contratista,,,,,Sistemas Avanzados SAS,900123456,Soporte Técnico,Bogotá
+```
+
+<Note>
+  The current implementation uses separate CSV files for each role, but the legacy format shows how users can have multiple roles by using `Estudiante|Empleado` in the `rol` column.
+</Note>
+
+### Role-Specific Columns
+
+| Role | Required Columns | Optional Columns |
+|------|------------------|------------------|
+| **Estudiante** | `programa_academico`, `facultad` | `semestre`, `sede` |
+| **Empleado** | `cargo` | `dependencia` |
+| **Contratista** | `empresa_proveedora` | `nit_proveedor`, `area_asignada` |
+
+<Warning>
+  When using multi-role format:
+  - Separate role names with pipe (`|`) character
+  - Include all required columns for **all** assigned roles
+  - Leave columns blank if a role doesn't apply (use empty values between commas)
+</Warning>
+
+## Data Type Reference
+
+### Institutional ID Format
+
+- **Pattern**: Typically starts with `80` followed by 6 digits
+- **Example**: `80123456`, `80234567`
+- **Must be unique** across all users
+
+### Document ID Format
+
+- **Pattern**: National ID number, typically 8-10 digits
+- **Example**: `1001234567`, `1234567890`
+- **Must be unique** across all users
+
+### Name Format
+
+- **Pattern**: Full name with proper capitalization
+- **Example**: `Juan Pérez Gómez`, `María López Rodríguez`
+- **Special characters**: UTF-8 supports accents and special characters (á, é, í, ó, ú, ñ)
+
+### Email Format (Legacy)
+
+- **Pattern**: `firstname.lastname@ucc.edu.co`
+- **Example**: `juan.perez@ucc.edu.co`
+- **Note**: Not required in the separated CSV format
+
+## Validation Rules
+
+### At Parse Time
+
+<Steps>
+  <Step title="Encoding Check">
+    File is read as UTF-8 and BOM is removed if present.
+  </Step>
+  
+  <Step title="Separator Detection">
+    System automatically detects comma or semicolon as separator.
+  </Step>
+  
+  <Step title="Header Validation">
+    First row is parsed as column headers (exact match required).
+  </Step>
+  
+  <Step title="Empty Row Filtering">
+    Rows without an `id_institucional` value are automatically filtered out.
+  </Step>
+</Steps>
+
+### At Import Time
+
+The backend performs additional validation:
+
+- **Duplicate detection**: `id_institucional` and `documento_identidad` must be unique
+- **Foreign key validation**: Role-specific CSVs must reference existing users from the base CSV
+- **Data type validation**: Field lengths and formats are validated against database constraints
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Excel adds extra columns">
+    Excel may add empty columns to the end of the CSV.
+    
+    **Solution**: The parser ignores empty columns, but you can clean the file by opening in a text editor and removing trailing commas.
+  </Accordion>
+  
+  <Accordion title="Special characters display incorrectly">
+    This indicates an encoding issue.
+    
+    **Solution**:
+    1. Open the file in Excel
+    2. Save As → CSV UTF-8 (Comma delimited)
+    3. Verify special characters (á, é, í, ó, ú, ñ) display correctly
+  </Accordion>
+  
+  <Accordion title="Semicolons in data fields">
+    If your data contains semicolons and you're using semicolon as separator, values may be split incorrectly.
+    
+    **Solution**: Use comma as separator, or enclose fields with semicolons in double quotes.
+  </Accordion>
+  
+  <Accordion title="Leading/trailing spaces in IDs">
+    Extra spaces in ID fields can cause lookup failures.
+    
+    **Solution**: The parser automatically trims whitespace, but it's best to clean your data before export.
+  </Accordion>
+</AccordionGroup>
+
+## Excel Export Guide
+
+<Steps>
+  <Step title="Prepare your data">
+    Create columns with the exact header names specified above.
+  </Step>
+  
+  <Step title="Save As CSV">
+    File → Save As → Choose "CSV UTF-8 (Comma delimited) (*.csv)"
+  </Step>
+  
+  <Step title="Verify encoding">
+    Open the saved file in a text editor (Notepad, VS Code) and verify:
+    - Special characters display correctly
+    - Commas separate the fields
+    - First row contains headers
+  </Step>
+  
+  <Step title="Test upload">
+    Upload a test file with 10-20 records before uploading the full dataset.
+  </Step>
+</Steps>
+
+<Tip>
+  Save your Excel workbook (`.xlsx`) as a template for future semesters. Export to CSV only when ready to upload.
+</Tip>
+
+## Example Files
+
+The repository includes a complete example file:
+
+```
+database/ejemplo_carga_semestral.csv
+```
+
+This file demonstrates:
+- ✅ Proper UTF-8 encoding
+- ✅ Multi-role assignments
+- ✅ All column types
+- ✅ Special characters (á, é, í, ó, ú, ñ)
+- ✅ Mixed user types (Student, Employee, Contractor)
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Data Loading Process" icon="upload" href="/admin/semester/data-loading">
+    Learn how to upload CSV files using the bulk data loading wizard
+  </Card>
+  
+  <Card title="Semester Cleanup" icon="broom" href="/admin/semester/cleanup">
+    Understand the end-of-semester cleanup procedure
+  </Card>
+</CardGroup>

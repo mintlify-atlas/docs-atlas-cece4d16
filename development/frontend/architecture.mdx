@@ -1,0 +1,413 @@
+---
+title: 'Frontend Architecture'
+description: 'Clean Architecture implementation in the UCC Access Control System'
+icon: 'layer-group'
+---
+
+## Overview
+
+The UCC Access Control System frontend implements **Clean Architecture** principles to ensure separation of concerns, testability, and maintainability. The architecture is organized in distinct layers with clear dependencies flowing inward.
+
+## Clean Architecture Layers
+
+The application follows a modular structure where each module implements the full Clean Architecture stack:
+
+```
+src/
+├── modules/
+│   └── [module-name]/
+│       ├── domain/              # Business logic layer (pure)
+│       │   ├── entities/        # Domain entities
+│       │   ├── repositories/    # Repository interfaces
+│       │   └── usecases/        # Use cases
+│       ├── infrastructure/      # External implementations
+│       │   ├── api/            # HTTP clients
+│       │   └── repositories/   # Repository implementations
+│       ├── application/         # Application logic
+│       │   └── hooks/          # React custom hooks
+│       └── presentation/        # UI layer
+│           ├── components/     # React components
+│           └── pages/          # Page views
+└── shared/
+    └── components/             # Shared components
+```
+
+### 1. Domain Layer
+
+The **domain layer** contains pure business logic with no external dependencies.
+
+#### Entities
+
+Domain entities represent core business objects:
+
+```javascript src/modules/login/domain/entities/User.js
+export class User {
+  constructor({
+    id,
+    idInstitucional,
+    documentoIdentidad,
+    nombreCompleto,
+    acceso,
+    totalFallas,
+    roles = []
+  }) {
+    this.id = id;
+    this.idInstitucional = idInstitucional;
+    this.documentoIdentidad = documentoIdentidad;
+    this.nombreCompleto = nombreCompleto;
+    this.acceso = acceso;
+    this.totalFallas = totalFallas;
+    this.roles = roles;
+  }
+
+  isBlocked() {
+    return this.acceso === 'bloqueado';
+  }
+
+  isAtRisk() {
+    return this.totalFallas >= 3;
+  }
+
+  getRemainingAttempts() {
+    return Math.max(0, 4 - this.totalFallas);
+  }
+}
+```
+
+#### Use Cases
+
+Use cases encapsulate business rules and orchestrate data flow:
+
+```javascript src/modules/login/domain/usecases/ValidateInstitutionalIdUseCase.js
+export class ValidateInstitutionalIdUseCase {
+  constructor(authRepository) {
+    this.authRepository = authRepository;
+  }
+
+  async execute(idInstitucional) {
+    try {
+      // Validate format
+      if (!idInstitucional || idInstitucional.trim() === '') {
+        return {
+          success: false,
+          error: 'El ID institucional es requerido'
+        };
+      }
+
+      // Validate numeric format
+      if (!/^\d+$/.test(idInstitucional)) {
+        return {
+          success: false,
+          error: 'El ID institucional debe contener solo números'
+        };
+      }
+
+      // Fetch user from repository
+      const user = await this.authRepository.validateInstitutionalId(idInstitucional);
+
+      if (!user) {
+        return {
+          success: false,
+          error: 'ID institucional no encontrado'
+        };
+      }
+
+      // Check if user is blocked
+      if (user.isBlocked()) {
+        return {
+          success: false,
+          error: 'Tu acceso está bloqueado. Comunícate con la administración.'
+        };
+      }
+
+      return {
+        success: true,
+        user
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message || 'Error al validar el ID institucional'
+      };
+    }
+  }
+}
+```
+
+#### Repository Interfaces
+
+Define contracts for data access without implementation details:
+
+```javascript src/modules/login/domain/repositories/AuthRepository.js
+export class AuthRepository {
+  async validateInstitutionalId(idInstitucional) {
+    throw new Error('Method not implemented');
+  }
+}
+```
+
+### 2. Infrastructure Layer
+
+Implements external concerns like HTTP clients and data persistence.
+
+#### API Clients
+
+```javascript src/modules/login/infrastructure/api/apiClient.js
+import axios from 'axios';
+
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// Request interceptor for auth tokens
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response interceptor for error handling
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('authToken');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export { apiClient };
+```
+
+#### Repository Implementations
+
+Concrete implementations of repository interfaces:
+
+```javascript
+import { AuthRepository } from '../../domain/repositories/AuthRepository';
+import { User } from '../../domain/entities/User';
+import { apiClient } from '../api/apiClient';
+
+export class AuthRepositoryImpl extends AuthRepository {
+  async validateInstitutionalId(idInstitucional) {
+    const response = await apiClient.post('/api/auth/login', {
+      id_institucional: idInstitucional
+    });
+    
+    return new User(response.data.usuario);
+  }
+}
+```
+
+### 3. Application Layer
+
+Bridges the domain and presentation layers using React hooks.
+
+```javascript src/modules/login/application/hooks/useLogin.js
+import { useState } from 'react';
+import { ValidateInstitutionalIdUseCase } from '../../domain/usecases/ValidateInstitutionalIdUseCase';
+import { AuthRepositoryImpl } from '../../infrastructure/repositories/AuthRepositoryImpl';
+
+export const useLogin = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [user, setUser] = useState(null);
+
+  const authRepository = new AuthRepositoryImpl();
+  const validateIdUseCase = new ValidateInstitutionalIdUseCase(authRepository);
+
+  const validateId = async (idInstitucional) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await validateIdUseCase.execute(idInstitucional);
+
+      if (result.success) {
+        setUser(result.user);
+        return { success: true, user: result.user };
+      } else {
+        setError(result.error);
+        return { success: false, error: result.error };
+      }
+    } catch (err) {
+      const errorMessage = 'Error inesperado al validar el ID';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearError = () => setError(null);
+  
+  const reset = () => {
+    setLoading(false);
+    setError(null);
+    setUser(null);
+  };
+
+  return { loading, error, user, validateId, clearError, reset };
+};
+```
+
+### 4. Presentation Layer
+
+Contains React components and pages that interact with users.
+
+```javascript
+import React, { useState } from 'react';
+import { useLogin } from '../../application/hooks/useLogin';
+import { useNavigate } from 'react-router-dom';
+
+export const LoginForm = () => {
+  const [idInstitucional, setIdInstitucional] = useState('');
+  const { loading, error, validateId, clearError } = useLogin();
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    clearError();
+
+    const result = await validateId(idInstitucional);
+
+    if (result.success) {
+      navigate('/user-profile', { state: { user: result.user } });
+    }
+  };
+
+  // Component JSX...
+};
+```
+
+## Dependency Flow
+
+Dependencies flow inward following Clean Architecture principles:
+
+```
+Presentation Layer (React Components)
+         ↓
+Application Layer (Custom Hooks)
+         ↓
+Domain Layer (Use Cases)
+         ↓
+Domain Layer (Repository Interfaces)
+         ↑ (implemented by)
+Infrastructure Layer (Repository Implementations)
+```
+
+<Note>
+**Key Principle**: Inner layers (domain) never depend on outer layers (infrastructure, presentation). This ensures business logic remains pure and testable.
+</Note>
+
+## Routing Architecture
+
+The application uses React Router DOM for navigation:
+
+```jsx src/App.jsx
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { LoginPage } from './modules/login/presentation/pages/LoginPage';
+import { UserProfilePage } from './modules/user-profile/presentation/pages/UserProfilePage';
+import { AdminPage } from './modules/admin/presentation/pages/AdminPage';
+import { ProtectedRoute } from './shared/components/ProtectedRoute';
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+
+        <Route
+          path="/user-profile"
+          element={
+            <ProtectedRoute>
+              <UserProfilePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Router>
+  );
+}
+```
+
+### Protected Routes
+
+Protected routes ensure authentication before accessing sensitive pages:
+
+```jsx src/shared/components/ProtectedRoute.jsx
+import { Navigate, useLocation } from 'react-router-dom';
+
+export const ProtectedRoute = ({ children }) => {
+  const location = useLocation();
+  const user = location.state?.user;
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+```
+
+## Benefits of This Architecture
+
+<CardGroup cols={2}>
+  <Card title="Testability" icon="flask">
+    Business logic is isolated and can be tested without UI or API dependencies.
+  </Card>
+  <Card title="Maintainability" icon="wrench">
+    Clear separation of concerns makes code easier to understand and modify.
+  </Card>
+  <Card title="Flexibility" icon="arrows-rotate">
+    Easy to swap implementations (e.g., mock vs. real API) without changing business logic.
+  </Card>
+  <Card title="Scalability" icon="chart-line">
+    Modular structure allows adding new features without affecting existing code.
+  </Card>
+</CardGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Keep Domain Layer Pure">
+    Never import UI libraries, HTTP clients, or external dependencies in the domain layer. Business logic should be framework-agnostic.
+  </Accordion>
+  
+  <Accordion title="Use Dependency Injection">
+    Pass repository implementations to use cases through constructors. This enables easy testing and swapping of implementations.
+  </Accordion>
+  
+  <Accordion title="One Use Case = One Responsibility">
+    Each use case should handle a single business operation. Don't create "god" use cases that do everything.
+  </Accordion>
+  
+  <Accordion title="Custom Hooks for Application Logic">
+    Use React hooks to manage state and side effects. They serve as the bridge between domain logic and UI components.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Module Structure" icon="folder-tree" href="/development/frontend/modules">
+    Explore the structure of each module in detail
+  </Card>
+  <Card title="Components Guide" icon="puzzle-piece" href="/development/frontend/components">
+    Learn about React components and patterns used
+  </Card>
+</CardGroup>

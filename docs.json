@@ -1,122 +1,124 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "UCC Control de Acceso",
+  "theme": "linden",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#003DA5",
+    "light": "#4A7BBA",
+    "dark": "#002870"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/xxxpedrozaxxx/ucc-control-acceso"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/xxxpedrozaxxx/ucc-control-acceso"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "architecture"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Features",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "features/authentication",
+              "features/user-profiles",
+              "features/failure-tracking",
+              "features/blocking-system",
+              "features/admin-dashboard"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "User Guides",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "guides/student-guide",
+              "guides/employee-guide",
+              "guides/contractor-guide",
+              "guides/admin-guide"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Database",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "database/schema",
+              "database/tables",
+              "database/procedures",
+              "database/data-loading"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Development",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Setup",
             "pages": [
-              "api-reference/introduction"
+              "development/installation",
+              "development/environment",
+              "development/running-locally"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Frontend",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "development/frontend/architecture",
+              "development/frontend/modules",
+              "development/frontend/components"
+            ]
+          },
+          {
+            "group": "Backend",
+            "pages": [
+              "development/backend/supabase-setup",
+              "development/backend/authentication",
+              "development/backend/database-operations"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Administration",
+        "groups": [
+          {
+            "group": "Dashboard",
+            "pages": [
+              "admin/dashboard-overview",
+              "admin/user-search",
+              "admin/blocking-management"
+            ]
+          },
+          {
+            "group": "Reports",
+            "pages": [
+              "admin/reports/overview",
+              "admin/reports/monthly-reports",
+              "admin/reports/export-excel"
+            ]
+          },
+          {
+            "group": "Semester Management",
+            "pages": [
+              "admin/semester/data-loading",
+              "admin/semester/csv-format",
+              "admin/semester/cleanup"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

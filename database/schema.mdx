@@ -1,0 +1,262 @@
+---
+title: Database Schema
+description: Entity-relationship diagram and multi-role architecture overview
+---
+
+## Overview
+
+The UCC Control de Acceso system uses a **multi-role architecture** where a single user can have multiple simultaneous roles (Student, Employee, Contractor). The database is built on PostgreSQL (Supabase) with automatic role assignment through triggers.
+
+## Entity-Relationship Diagram
+
+The database follows a normalized design with separate tables for user information, roles, and role-specific data:
+
+```dbml
+// --- Master Tables ---
+
+Table Usuarios {
+  id integer [primary key, note: 'Internal system ID']
+  id_institucional varchar [unique, note: 'UCC-assigned ID (e.g., 80XXXX)']
+  documento_identidad varchar [unique, note: 'National ID']
+  nombre_completo varchar
+  correo_institucional varchar [unique]
+  estado_general enum('activo', 'bloqueado') [default: 'activo']
+  total_fallas integer [default: 0]
+  created_at timestamp [default: 'now()']
+  updated_at timestamp [default: 'now()']
+}
+
+Table Roles {
+  id integer [primary key]
+  nombre_rol varchar [note: 'Estudiante, Empleado, Contratista']
+  descripcion text
+  created_at timestamp [default: 'now()']
+}
+
+// Many-to-many: A user can be both Student and Employee simultaneously
+Table Usuario_Roles {
+  usuario_id integer
+  rol_id integer
+  fecha_asignacion timestamp [default: 'now()']
+  activo boolean [default: true]
+  primary key (usuario_id, rol_id)
+}
+
+// --- Role-Specific Information Tables ---
+
+Table Info_Estudiantes {
+  usuario_id integer [primary key]
+  programa_academico varchar
+  facultad varchar
+  campus_sede varchar
+  semestre integer
+  estado_academico enum('activo', 'inactivo', 'graduado') [default: 'activo']
+}
+
+Table Info_Empleados {
+  usuario_id integer [primary key]
+  dependencia varchar
+  cargo varchar
+  tipo_contrato enum('indefinido', 'fijo', 'prestacion_servicios']
+  fecha_ingreso date
+}
+
+Table Info_Contratistas {
+  usuario_id integer [primary key]
+  empresa_proveedora varchar
+  nit_proveedor varchar
+  area_asignada varchar
+  fecha_inicio_contrato date
+  fecha_fin_contrato date
+}
+
+// --- Incident Management ---
+
+Table Registro_Fallas {
+  id integer [primary key]
+  usuario_id integer
+  fecha_hora timestamp [default: 'now()']
+  motivo enum('olvido', 'perdida', 'robo')
+  observacion text
+  sede_registro varchar
+  vigilante_registro varchar [note: 'Who registered the entry']
+}
+
+Table Historial_Bloqueos {
+  id integer [primary key]
+  usuario_id integer
+  fecha_bloqueo timestamp [default: 'now()']
+  motivo_bloqueo enum('limite_fallas', 'perdida_carnet', 'robo_carnet', 'administrativo')
+  observacion_bloqueo text
+  fecha_desbloqueo timestamp [null]
+  desbloqueado_por integer [null, note: 'Admin ID who unlocked']
+  observacion_desbloqueo text [null]
+  estado enum('activo', 'resuelto') [default: 'activo']
+}
+
+// --- Relationships ---
+Ref: Usuario_Roles.usuario_id > Usuarios.id [delete: cascade]
+Ref: Usuario_Roles.rol_id > Roles.id
+Ref: Info_Estudiantes.usuario_id - Usuarios.id [delete: cascade]
+Ref: Info_Empleados.usuario_id - Usuarios.id [delete: cascade]
+Ref: Info_Contratistas.usuario_id - Usuarios.id [delete: cascade]
+Ref: Registro_Fallas.usuario_id > Usuarios.id
+Ref: Historial_Bloqueos.usuario_id > Usuarios.id
+```
+
+## Multi-Role Architecture
+
+### Why Multiple Roles?
+
+The system supports users with multiple simultaneous roles. Common scenarios:
+
+- **Student + Employee**: A student working part-time at the library
+- **Employee + Contractor**: A staff member also contracted through an external company
+- **Student + Contractor**: An intern from a partner company
+
+### Example: Multi-Role User
+
+```
+User ID: 80123456
+├─ Role 1: Student ✓
+│  └─ Program: Systems Engineering
+│  └─ Faculty: Engineering
+│  └─ Semester: 8
+│
+└─ Role 2: Employee ✓
+   └─ Position: Library Assistant
+   └─ Department: Library
+```
+
+### How It Works
+
+The `usuario_roles` table creates a many-to-many relationship:
+
+```sql
+SELECT 
+    u.nombre_completo,
+    GROUP_CONCAT(r.nombre_rol) AS roles
+FROM usuarios u
+JOIN usuario_roles ur ON u.id = ur.usuario_id
+JOIN roles r ON ur.rol_id = r.id
+GROUP BY u.id;
+```
+
+**Result:**
+```
+nombre_completo              | roles
+-----------------------------+----------------------
+Juan Pérez Gómez             | Estudiante, Empleado
+María López Rodríguez        | Estudiante
+Carlos Martínez Sánchez      | Contratista
+```
+
+## Key Design Decisions
+
+### 1. Institutional ID as Foreign Key
+
+The `usuario_roles` and info tables reference `id_institucional` (VARCHAR) instead of the internal `id` (BIGINT):
+
+**Reason**: `id_institucional` is **stable** across semesters. When the database is cleaned for a new semester, the internal `id` changes, but `id_institucional` remains the same.
+
+**Benefit**: Enables independent CSV loading:
+- `usuarios.csv` can be loaded first
+- `roles.csv` can be loaded separately
+- No need to query for internal IDs
+
+### 2. Minimal Data Storage
+
+Only essential information is stored:
+
+- **Students**: Program name only (no GPA, schedules, grades)
+- **Employees**: Position and department (no salary, contract details)
+- **Contractors**: Company name only (no contract values, dates)
+
+**Reason**: Access control doesn't need sensitive data. This reduces privacy risks.
+
+### 3. Automatic Role Assignment
+
+Roles are assigned automatically via triggers:
+
+```sql
+INSERT INTO info_estudiante → Trigger assigns 'Estudiante' role
+INSERT INTO info_empleado   → Trigger assigns 'Empleado' role
+DELETE FROM info_estudiante → Trigger revokes 'Estudiante' role
+```
+
+**Benefit**: Departments can load their CSV files independently without coordinating role assignments.
+
+## Access States
+
+Users can have two states:
+
+| State | Description | Can Enter? | Required Action |
+|-------|-------------|------------|----------------|
+| `activo` | No restrictions | ✅ YES | None |
+| `bloqueado` | Access blocked | ❌ NO | Contact administration |
+
+### Blocking Rules
+
+```
+FORGOT (allows 3 times, blocks on 4th):
+├─ 1st time: +1 failure → ✅ ENTRY ALLOWED (1/4)
+├─ 2nd time: +1 failure → ✅ ENTRY ALLOWED (2/4)
+├─ 3rd time: +1 failure → ⚠️ ENTRY ALLOWED (3/4) - AT RISK
+└─ 4th time: +1 failure → 🚫 BLOCKED AUTOMATICALLY
+
+LOST:
+└─ 🚫 IMMEDIATE BLOCK (no counter increment)
+```
+
+## Semester Management
+
+At the end of each semester:
+
+1. **Export all data** to Excel (for historical records)
+2. **Delete semester data** using `DELETE FROM` (not `TRUNCATE`)
+3. **Load new CSV** with updated enrollment/employment data
+4. **Verify role assignments** using provided queries
+
+<Warning>
+  Never use `TRUNCATE` for semester data. It doesn't trigger the automatic role revocation, leaving orphaned roles in the system.
+</Warning>
+
+## Database Statistics
+
+```sql
+-- Count users by role
+SELECT 
+    r.nombre_rol,
+    COUNT(*) AS total
+FROM usuario_roles ur
+JOIN roles r ON ur.rol_id = r.id
+GROUP BY r.nombre_rol;
+```
+
+```sql
+-- Find users with multiple roles
+SELECT 
+    u.id_institucional,
+    u.nombre_completo,
+    COUNT(ur.rol_id) AS num_roles,
+    STRING_AGG(r.nombre_rol, ', ') AS roles
+FROM usuarios u
+JOIN usuario_roles ur ON u.id = ur.usuario_id
+JOIN roles r ON ur.rol_id = r.id
+GROUP BY u.id, u.nombre_completo
+HAVING COUNT(ur.rol_id) > 1;
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Table Structures" icon="table" href="/database/tables">
+    Detailed field descriptions and constraints
+  </Card>
+  <Card title="Stored Procedures" icon="code" href="/database/procedures">
+    Functions for registering entries and managing blocks
+  </Card>
+  <Card title="Data Loading" icon="upload" href="/database/data-loading">
+    CSV format and bulk loading process
+  </Card>
+</CardGroup>

@@ -1,0 +1,461 @@
+---
+title: 'Guía para Contratistas'
+description: 'Aprende a usar el sistema de Control de Acceso como contratista de la UCC'
+icon: 'user-tie'
+---
+
+## Introducción
+
+Bienvenido al Sistema de Control de Acceso de la Universidad Cooperativa de Colombia. Como contratista externo, este sistema te permite registrar tu ingreso cuando **NO portas tu Tarjeta de Identificación Cooperativista (TIC)**.
+
+<Warning>
+  **Importante:** Este sistema SOLO se utiliza cuando olvidas o pierdes tu carnet físico. No registra ingresos normales con carnet.
+</Warning>
+
+## ¿Quiénes son considerados contratistas?
+
+Eres contratista si:
+
+- Trabajas para una **empresa proveedora** que presta servicios a la UCC
+- Tienes un **contrato temporal** con fecha de inicio y fin específicas
+- Prestas servicios en áreas específicas de la Universidad
+- Ejemplos: personal de limpieza, mantenimiento, seguridad, servicios de TI, consultoría, etc.
+
+## ¿Cómo usar el sistema?
+
+<Steps>
+  <Step title="Ingresa tu ID Institucional">
+    En la pantalla de inicio, ingresa tu **ID institucional** asignado por la UCC en el campo numérico.
+    
+    - Solo se permiten números
+    - Este ID te fue proporcionado al iniciar tu contrato
+    - Presiona el botón **"INGRESAR"**
+  </Step>
+
+  <Step title="Verifica tu información de contratista">
+    El sistema mostrará tu perfil con:
+    
+    **Datos personales:**
+    - Nombre completo
+    - Documento de identidad
+    - ID institucional
+    - Estado de acceso (activo o bloqueado)
+    
+    **Información del contrato:**
+    - Empresa proveedora para la que trabajas
+    - NIT de la empresa
+    - Área asignada dentro de la UCC
+    - Fecha de inicio del contrato
+    - Fecha de finalización del contrato
+    
+    **Contador de fallas:** X/4 (fallas acumuladas de 4 permitidas)
+  </Step>
+
+  <Step title="Reporta el motivo">
+    Selecciona el motivo por el cual no portas tu TIC:
+    
+    - **📋 Olvidé mi TIC:** Olvidaste tu carnet
+    - **⚠️ Perdí mi TIC:** Tu carnet se extravió o fue robado
+    
+    <Warning>
+      **Atención:** Reportar pérdida resulta en bloqueo inmediato. Deberás contactar a tu empresa y a la UCC.
+    </Warning>
+  </Step>
+
+  <Step title="Confirma tu reporte">
+    Revisa tu selección y confirma el reporte.
+    
+    El sistema procesará tu ingreso y mostrará:
+    - ✅ Confirmación del reporte
+    - Tu contador actualizado de fallas
+    - Advertencias si tienes 3 fallas (en riesgo de bloqueo)
+  </Step>
+</Steps>
+
+## Información específica de contratistas
+
+### Datos mostrados en tu perfil
+
+<AccordionGroup>
+  <Accordion title="Información Personal" icon="user">
+    - **Nombre completo**
+    - **Documento de identidad** (cédula)
+    - **ID institucional** (asignado por la UCC)
+    - **Correo** (si fue proporcionado)
+    - **Estado general:** Activo o Bloqueado
+  </Accordion>
+
+  <Accordion title="Información del Contrato" icon="file-contract">
+    - **Empresa proveedora:** Nombre de tu empresa empleadora
+    - **NIT de la empresa:** Identificación fiscal de tu empresa
+    - **Área asignada:** Dónde prestas servicios (ej: Mantenimiento, Limpieza, TI)
+    - **Fecha de inicio:** Cuándo comenzó tu contrato
+    - **Fecha de fin:** Cuándo finaliza tu contrato
+    
+    <Info>
+      **Importante:** Tu acceso está vinculado a la vigencia de tu contrato. Una vez que finalice tu contrato, tu acceso será desactivado automáticamente.
+    </Info>
+  </Accordion>
+
+  <Accordion title="Control de Fallas" icon="gauge">
+    - **Total de fallas acumuladas:** X/4
+    - **Historial de fallas:**
+      - Fecha y hora de cada reporte
+      - Motivo (olvido o pérdida)
+      - Sede donde se registró
+      - Observaciones del vigilante
+  </Accordion>
+</AccordionGroup>
+
+## Sistema de fallas para contratistas
+
+### Reglas de fallas
+
+El sistema funciona igual que para empleados y estudiantes:
+
+<Steps>
+  <Step title="Fallas 1-2: Acceso normal">
+    🟢 **Estado:** Ingreso permitido
+    
+    - Puedes ingresar sin restricciones
+    - El sistema suma +1 a tu contador
+    - Mensaje: "Ingreso permitido. Fallas: X/4"
+  </Step>
+
+  <Step title="Falla 3: Advertencia">
+    🟡 **Estado:** En riesgo
+    
+    - Acceso permitido, pero recibes una advertencia
+    - **Una falla más resulta en bloqueo**
+    
+    **Advertencia mostrada:**
+    ```
+    ⚠️ ADVERTENCIA:
+    Tienes 3 fallas registradas.
+    Una falla más resultará en BLOQUEO automático.
+    Asegúrate de traer tu TIC en el próximo ingreso.
+    ```
+    
+    <Warning>
+      Si eres bloqueado, tu empresa será notificada y puede afectar la continuidad de tu trabajo.
+    </Warning>
+  </Step>
+
+  <Step title="Falla 4: Bloqueado">
+    🔴 **Estado:** Acceso denegado
+    
+    - Bloqueo automático
+    - No puedes ingresar a las instalaciones
+    - Debes contactar a tu empresa y a la UCC
+    
+    **Mensaje mostrado:**
+    ```
+    🚫 USUARIO BLOQUEADO
+    Has alcanzado el límite de 4 fallas.
+    Contacta a tu empresa y a la Dirección de la UCC para desbloquear.
+    ```
+  </Step>
+</Steps>
+
+### Reporte de pérdida
+
+<Warning>
+  **Bloqueo inmediato:** Al reportar pérdida, el sistema te bloqueará instantáneamente, sin importar cuántas fallas tengas.
+</Warning>
+
+**Razones del bloqueo inmediato:**
+- Seguridad de las instalaciones de la UCC
+- Prevenir uso fraudulento del carnet
+- Protección de áreas restringidas
+
+**Pasos a seguir:**
+1. Reporta la pérdida en el sistema
+2. Notifica a tu supervisor en la empresa proveedora
+3. Contacta al representante de la UCC para tu contrato
+4. Solicita un nuevo carnet
+5. Espera el desbloqueo administrativo
+
+## Vigencia del contrato
+
+<Info>
+  Tu acceso al sistema está **directamente vinculado** a la vigencia de tu contrato con la UCC.
+</Info>
+
+### Durante la vigencia del contrato
+
+- ✅ Puedes usar el sistema normalmente
+- ✅ Acumulas fallas según las reglas estándar
+- ✅ Puedes solicitar desbloqueos si es necesario
+
+### Al finalizar el contrato
+
+<Steps>
+  <Step title="Una semana antes">
+    Se te notificará (si se proporcionó correo) que tu contrato está por finalizar.
+  </Step>
+
+  <Step title="Fecha de finalización">
+    - Tu acceso será **desactivado automáticamente**
+    - No podrás usar el sistema de Control de Acceso
+    - Deberás devolver tu TIC a la UCC o a tu empresa
+  </Step>
+
+  <Step title="Renovación de contrato">
+    Si tu contrato se renueva:
+    
+    - La UCC actualizará tu nueva fecha de fin
+    - Tu acceso será reactivado
+    - Tu contador de fallas continuará (no se reinicia)
+  </Step>
+
+  <Step title="Nuevo contrato">
+    Si inicias un **nuevo contrato** después de un tiempo:
+    
+    - Se creará un nuevo perfil en el sistema
+    - Tu contador empezará en 0/4
+    - Recibirás un nuevo ID institucional (posiblemente)
+  </Step>
+</Steps>
+
+## Escenarios comunes para contratistas
+
+<AccordionGroup>
+  <Accordion title="Olvidé mi TIC en mi anterior turno" icon="clock">
+    **Situación:** Trabajas en turnos y dejaste tu carnet en el casillero o área de trabajo.
+    
+    **Acción:**
+    1. Usa el sistema de Control de Acceso
+    2. Selecciona: **"Olvidé mi TIC"**
+    3. Se sumará +1 a tu contador
+    4. Podrás ingresar (si no has llegado a 4 fallas)
+    5. Recupera tu TIC y llévala contigo al salir
+    
+    **Prevención:** Antes de salir de tu turno, verifica que llevas tu TIC contigo.
+  </Accordion>
+
+  <Accordion title="Mi empresa cambió de contrato con la UCC" icon="building">
+    **Situación:** Tu empresa renovó o modificó el contrato de servicios.
+    
+    **Acción:**
+    - Tu empresa debe notificar a la UCC
+    - El área administrativa actualizará:
+      - Fecha de finalización
+      - NIT (si cambió la razón social)
+      - Área asignada (si cambió)
+    - Tu ID institucional generalmente se mantiene
+    
+    **Nota:** Si hay cambios en tu información, verifica en el sistema que esté correcta.
+  </Accordion>
+
+  <Accordion title="Fui asignado a otra área dentro de la UCC" icon="arrows">
+    **Situación:** Tu empresa te reasignó a otra área o edificio.
+    
+    **Acción:**
+    1. Tu empresa debe notificar el cambio a la UCC
+    2. Un administrador actualizará tu "Área asignada" en el sistema
+    3. Verifica que tu perfil refleje el cambio
+    
+    **Importante:** Tu acceso puede cambiar según las áreas a las que estás autorizado.
+  </Accordion>
+
+  <Accordion title="Tengo 3 fallas y mi jefe me advirtió" icon="triangle-exclamation">
+    **Situación:** Estás en riesgo de bloqueo y tu empresa está preocupada.
+    
+    **Acción:**
+    - ⚠️ **Máxima precaución:** NO olvides tu TIC
+    - Establece recordatorios en tu teléfono
+    - Mantén tu TIC en un lugar fijo (billetera, bolso)
+    - Explica a tu empresa que tomarás medidas preventivas
+    
+    **Consecuencias de bloqueo:**
+    - No podrás ingresar a trabajar
+    - Tu empresa puede ser notificada
+    - Puede afectar tu evaluación de desempeño
+    - Necesitarás autorización administrativa para desbloqueo
+  </Accordion>
+
+  <Accordion title="Perdí mi TIC y necesito trabajar hoy" icon="ban">
+    **Situación:** Perdiste tu carnet y tienes responsabilidades inmediatas.
+    
+    **Acción inmediata:**
+    1. Reporta la pérdida en el sistema (serás bloqueado)
+    2. Contacta a tu supervisor en la empresa **inmediatamente**
+    3. Tu empresa contactará al representante de la UCC
+    4. Solicita un carnet temporal o permiso especial
+    5. Espera instrucciones de la UCC
+    
+    **Proceso de desbloqueo:**
+    - Tu empresa debe respaldar tu solicitud
+    - La UCC evaluará la situación
+    - Se puede emitir un permiso temporal
+    - Deberás obtener un nuevo carnet permanente
+  </Accordion>
+</AccordionGroup>
+
+## Responsabilidades de los contratistas
+
+<CardGroup cols={2}>
+  <Card title="Portar siempre tu TIC" icon="id-card">
+    Es tu responsabilidad traer tu Tarjeta de Identificación Cooperativista todos los días laborales.
+  </Card>
+  
+  <Card title="Reportar pérdidas inmediatamente" icon="shield">
+    Si pierdes tu TIC, repórtalo de inmediato para evitar uso indebido y problemas de seguridad.
+  </Card>
+  
+  <Card title="Mantener datos actualizados" icon="pen">
+    Notifica a tu empresa cualquier cambio en tus datos personales para que actualicen el sistema.
+  </Card>
+  
+  <Card title="Cumplir con las reglas" icon="scale-balanced">
+    Respeta las políticas de acceso de la UCC y las instrucciones de seguridad.
+  </Card>
+</CardGroup>
+
+## Diferencias entre contratistas y empleados
+
+| Aspecto | Contratistas | Empleados |
+|---------|-------------|----------|
+| **Vínculo** | Empresa proveedora | UCC directamente |
+| **Vigencia** | Fecha de inicio y fin del contrato | Indefinido o fijo (por años) |
+| **Empresa** | Se muestra empresa proveedora y NIT | Se muestra dependencia y cargo |
+| **Acceso** | Se desactiva al finalizar contrato | Permanece hasta terminación laboral |
+| **Fallas** | Mismas reglas (4 máximo) | Mismas reglas (4 máximo) |
+| **Desbloqueo** | Requiere aprobación de empresa + UCC | Requiere supervisor + RRHH |
+
+## Proceso de desbloqueo para contratistas
+
+<Steps>
+  <Step title="Notifica a tu empresa">
+    Contacta a tu supervisor o representante en la empresa proveedora.
+    
+    **Informa:**
+    - Que estás bloqueado en el sistema
+    - El motivo del bloqueo (4 olvidos o pérdida)
+    - Que necesitas desbloqueo urgente
+  </Step>
+
+  <Step title="Empresa contacta a la UCC">
+    Tu empresa debe:
+    
+    - Contactar al representante de la UCC para el contrato
+    - Respaldar tu solicitud de desbloqueo
+    - Explicar las medidas que tomarán para prevenir más fallas
+  </Step>
+
+  <Step title="Evaluación por la UCC">
+    Un administrador de la UCC:
+    
+    - Revisará tu historial de fallas
+    - Evaluará la justificación de tu empresa
+    - Verificará la vigencia de tu contrato
+    - Decidirá si aprueba el desbloqueo
+  </Step>
+
+  <Step title="Desbloqueo y reinicio">
+    Si se aprueba:
+    
+    - Tu estado cambiará a **"Activo"**
+    - Tu contador se reiniciará a **0/4**
+    - Se registrará la observación del desbloqueo
+    - Podrás usar el sistema nuevamente
+    - Tu empresa recibirá confirmación
+  </Step>
+</Steps>
+
+## Preguntas frecuentes
+
+<AccordionGroup>
+  <Accordion title="¿Mi empresa puede ver mis fallas?" icon="question">
+    La UCC puede compartir información de fallas con tu empresa si:
+    
+    - Estás bloqueado y solicitan desbloqueo
+    - Hay problemas de seguridad
+    - Lo requiere el contrato de servicios
+    
+    **Recomendación:** Mantén un buen registro de asistencia con tu TIC para evitar reportes negativos.
+  </Accordion>
+
+  <Accordion title="¿Qué pasa si mi contrato termina y tengo fallas acumuladas?" icon="question">
+    Al finalizar tu contrato:
+    
+    - Tu acceso se desactiva automáticamente
+    - Tu historial de fallas se mantiene en el sistema (auditoría)
+    - Si obtienes un **nuevo contrato** más adelante, empezarás con **0 fallas**
+    
+    Las fallas no se transfieren entre contratos diferentes.
+  </Accordion>
+
+  <Accordion title="¿Puedo usar la TIC de otro contratista?" icon="question">
+    **NO. ¡ABSOLUTAMENTE NO!**
+    
+    - Es una violación grave de seguridad
+    - Puede resultar en:
+      - Terminación inmediata de tu contrato
+      - Bloqueo permanente
+      - Acciones legales
+      - Sanciones a tu empresa
+    
+    **Cada TIC es personal e intransferible.**
+  </Accordion>
+
+  <Accordion title="¿Puedo trabajar en varias sedes de la UCC?" icon="question">
+    Depende de tu contrato y área asignada:
+    
+    - Si tu contrato especifica **una sede:** Solo tendrás acceso a esa sede
+    - Si tu contrato es **multisede:** Tendrás acceso autorizado a varias ubicaciones
+    
+    Consulta con tu empresa y verifica tu "Área asignada" en el sistema.
+  </Accordion>
+
+  <Accordion title="¿El contador se reinicia cada semestre?" icon="question">
+    **Depende de la vigencia de tu contrato:**
+    
+    - Si tu contrato **continúa** en el nuevo semestre: Tu contador puede mantenerse o reiniciarse según políticas de la UCC
+    - Si tu contrato **finaliza**: Tu acceso se desactiva
+    - Si inicias un **nuevo contrato**: Empiezas con 0 fallas
+    
+    **Generalmente**, al inicio de semestre académico se reinician los contadores de todos los usuarios.
+  </Accordion>
+</AccordionGroup>
+
+## Soporte y contacto
+
+### Para contratistas
+
+**Primer contacto:**
+- 🏢 **Tu empresa proveedora:** Contacta primero a tu supervisor o representante
+
+**Si tu empresa no puede resolver:**
+- 📧 **Email UCC:** soporte@ucc.edu.co
+- 📱 **Teléfono UCC:** +57 (1) XXX XXXX
+- 🏢 **Presencial:** Dirección o área administrativa de la sede donde trabajas
+
+<Note>
+  **Importante:** Para la mayoría de problemas (desbloqueos, actualización de datos, etc.), tu empresa debe ser el intermediario con la UCC.
+</Note>
+
+## Consejos finales
+
+<CardGroup cols={2}>
+  <Card title="TIC en tu uniforme" icon="shirt">
+    Si usas uniforme, mantén tu TIC en el mismo bolsillo o lugar todos los días.
+  </Card>
+  
+  <Card title="Checklist diario" icon="list-check">
+    Antes de salir de casa: teléfono ✓, llaves ✓, TIC ✓
+  </Card>
+  
+  <Card title="Comunica cambios" icon="comments">
+    Si cambias de área o tienes dudas, comunícalo a tu empresa y a la UCC.
+  </Card>
+  
+  <Card title="Buen registro" icon="star">
+    Mantener cero fallas demuestra profesionalismo y compromiso con tu trabajo.
+  </Card>
+</CardGroup>
+
+---
+
+**Universidad Cooperativa de Colombia © 2026**  
+*Todos los derechos reservados*

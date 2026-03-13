@@ -1,0 +1,186 @@
+---
+title: Reports Overview
+description: Overview of the reporting system in UCC Control de Acceso
+---
+
+The Reports module provides comprehensive analytics and data visualization for the UCC Control de Acceso system. It allows administrators to analyze access failures, user statistics, and generate exportable reports.
+
+## Types of Reports Available
+
+The system generates reports across different time periods and categories:
+
+### Period-Based Reports
+
+Reports can be generated for four different time periods:
+
+- **Daily (Diario)**: Current or previous days
+- **Weekly (Semanal)**: Monday through Sunday periods
+- **Monthly (Mensual)**: Full calendar months
+- **Semester (Semestral)**: Academic semesters (1st or 2nd half of the year)
+
+### Report Categories
+
+1. **General Summary**
+   - Total registered students
+   - Total employees
+   - Total contractors
+   - Total failures in the period
+
+2. **Failures by Day**
+   - Daily breakdown of access failures
+   - Visual representation using horizontal bar charts (Gantt-style)
+
+3. **Distribution Reports**
+   - Students by academic program
+   - Employees by department
+   - Failures by academic program
+   - Failures by department
+   - Failures by contractor company
+
+## Report Generation Process
+
+The reporting system follows this workflow:
+
+### 1. Period Selection
+
+Users select a report period using the tabbed interface:
+
+```jsx
+// Period selector component from ReportesView:153
+const PERIODOS = [
+  { id: 'diario',     label: 'Diario'     },
+  { id: 'semanal',    label: 'Semanal'    },
+  { id: 'mensual',    label: 'Mensual'    },
+  { id: 'semestral',  label: 'Semestral'  },
+];
+```
+
+### 2. Data Aggregation
+
+The system calculates the date range based on the selected period and optional offset:
+
+- **Current period**: offset = 0
+- **Previous period**: offset = 1, 2, 3, etc.
+
+Date ranges are calculated automatically using the `calcularPeriodo()` function (ReportesView.jsx:21-70).
+
+### 3. Visualization
+
+Reports are displayed in three formats:
+
+**Summary Cards**
+
+Show key metrics with icons and color coding:
+
+- 🎓 Students (blue)
+- 💼 Employees (purple)
+- 🏢 Contractors (orange)
+- ⚠️ Failures (yellow)
+
+**Bar Charts**
+
+Horizontal bar charts (Gantt-style) display:
+- Failures per day over time
+- Using Recharts library for interactive visualization
+
+**Distribution Charts**
+
+Gantt-style horizontal bars showing:
+- Top programs/departments by count
+- Custom color palette: `GANTT_COLORS` array (ReportesView.jsx:9-13)
+
+### 4. Navigation
+
+Users can navigate between time periods:
+
+- **Previous period**: ← button
+- **Next period**: → button (disabled for current period)
+- Period label displays in Spanish format
+
+## Export Formats
+
+Reports can be exported to **Excel (.xlsx)** format with multiple sheets.
+
+### Excel Export Features
+
+- **Multi-sheet workbooks**: Each report category on separate sheet
+- **Formatted columns**: Auto-sized columns for readability
+- **Metadata included**: Report period and generation timestamp
+- **File naming**: `informe_ucc_{periodo}_{fecha}.xlsx`
+
+### Available Export Data
+
+1. **Resumen** (Summary): General statistics
+2. **Fallas por día** (Failures by day): Daily breakdown
+3. **Por programa** (By program): Student distribution
+4. **Por dependencia** (By department): Employee distribution
+5. **Fallas por programa**: Program-specific failures
+6. **Fallas por dependencia**: Department-specific failures
+7. **Fallas por empresa**: Contractor company failures
+
+See [Excel Export](/admin/reports/export-excel) for detailed information on the export functionality.
+
+## Data Source
+
+All report data comes from Supabase in real-time:
+
+```jsx
+// Footer note from ReportesView:426-429
+<span className="text-xs text-gray-400">
+  Datos en tiempo real desde Supabase
+</span>
+```
+
+The system queries aggregated data from the backend API, which processes:
+- User records from `Usuarios` table
+- Failure records from `Registro_Fallas` table
+- Role-specific data from `Info_Estudiantes`, `Info_Empleados`, and `Info_Contratistas`
+
+## Report Components
+
+### ReportesView Component
+
+The main report view component (src/modules/admin/presentation/components/views/ReportesView.jsx) accepts:
+
+**Props:**
+- `reporte`: Report data object
+- `loading`: Boolean loading state
+- `periodo`: Current period (diario|semanal|mensual|semestral)
+- `offset`: Period offset (0 = current, 1+ = past)
+- `onCambiarPeriodo`: Callback for period changes
+
+**Report Data Structure:**
+```javascript
+reporte: {
+  totalEstudiantes: number,
+  totalEmpleados: number,
+  totalContratistas: number,
+  fallasPeriodo: number,
+  fallasEstudiantes: number,
+  fallasEmpleados: number,
+  fallasContratistas: number,
+  fallasPorDia: [{ dia: string, total: number }],
+  porPrograma: [{ programa: string, total: number }],
+  porDependencia: [{ dependencia: string, total: number }],
+  fallasPorPrograma: [{ programa: string, fallas_total: number }],
+  fallasPorDependencia: [{ dependencia: string, fallas_total: number }],
+  fallasPorEmpresa: [{ empresa: string, fallas_total: number }],
+  rangoEtiqueta: string // Optional label override
+}
+```
+
+## User Interface
+
+The reports interface features:
+
+- **Clean layout**: White cards with subtle shadows and borders
+- **Institutional colors**: Matching UCC brand guidelines
+- **Responsive design**: Grid layouts adapt to screen size
+- **Loading states**: Spinner indicators during data fetch
+- **Empty states**: Informative messages when no data available
+- **Color coding**: Consistent use of GANTT_COLORS palette
+
+## Next Steps
+
+- [Monthly Reports](/admin/reports/monthly-reports) - Learn about monthly report types
+- [Excel Export](/admin/reports/export-excel) - Detailed export functionality guide

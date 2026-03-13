@@ -1,0 +1,394 @@
+---
+title: Database Tables
+description: Complete table structures with field descriptions, constraints, and indexes
+---
+
+## Core Tables
+
+### usuarios
+
+The central table storing all users in the system.
+
+```sql
+CREATE TABLE usuarios (
+    id                  BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_institucional    VARCHAR(20)       NOT NULL UNIQUE,
+    documento_identidad VARCHAR(20)       NOT NULL UNIQUE,
+    nombre_completo     VARCHAR(150)      NOT NULL,
+    acceso              estado_de_acceso  NOT NULL DEFAULT 'activo',
+    total_fallas        INT               NOT NULL DEFAULT 0
+);
+
+-- Enum type
+CREATE TYPE estado_de_acceso AS ENUM ('activo', 'bloqueado');
+
+-- Indexes
+CREATE INDEX idx_usuarios_id_institucional ON usuarios (id_institucional);
+CREATE INDEX idx_usuarios_documento        ON usuarios (documento_identidad);
+CREATE INDEX idx_usuarios_acceso           ON usuarios (acceso);
+```
+
+#### Field Descriptions
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | BIGINT | Internal system identifier (auto-generated) |
+| `id_institucional` | VARCHAR(20) | UCC-assigned ID (e.g., 80123456) - **UNIQUE** |
+| `documento_identidad` | VARCHAR(20) | National ID card number - **UNIQUE** |
+| `nombre_completo` | VARCHAR(150) | User's full name |
+| `acceso` | ENUM | Access state: `activo` (can enter) or `bloqueado` (blocked) |
+| `total_fallas` | INT | Accumulated failure count (blocks at 4) |
+
+#### Key Constraints
+
+- **Primary Key**: `id`
+- **Unique Constraints**: `id_institucional`, `documento_identidad`
+- **Check**: `total_fallas >= 0`
+
+---
+
+### roles
+
+Catalog of available roles in the system. This table is **never deleted** between semesters.
+
+```sql
+CREATE TABLE roles (
+    id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    nombre_rol VARCHAR(50) NOT NULL UNIQUE,
+    descripcion TEXT
+);
+
+-- Initial data
+INSERT INTO roles (nombre_rol, descripcion) VALUES
+    ('Estudiante',   'Usuario matriculado en un programa académico'),
+    ('Empleado',     'Trabajador vinculado directamente a la UCC'),
+    ('Contratista',  'Proveedor externo con contrato activo');
+```
+
+#### Field Descriptions
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | BIGINT | Internal role identifier |
+| `nombre_rol` | VARCHAR(50) | Role name: `Estudiante`, `Empleado`, `Contratista` |
+| `descripcion` | TEXT | Human-readable description |
+
+---
+
+### usuario_roles
+
+Bridge table implementing the many-to-many relationship between users and roles.
+
+```sql
+CREATE TABLE usuario_roles (
+    id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_institucional VARCHAR(20) NOT NULL 
+                     REFERENCES usuarios(id_institucional) ON DELETE CASCADE,
+    rol_id           BIGINT      NOT NULL REFERENCES roles(id),
+
+    CONSTRAINT uq_usuario_rol UNIQUE (id_institucional, rol_id)
+);
+
+-- Indexes
+CREATE INDEX idx_usuario_roles_institucional ON usuario_roles (id_institucional);
+CREATE INDEX idx_usuario_roles_rol           ON usuario_roles (rol_id);
+```
+
+#### Design Decision: Why `id_institucional` instead of `id`?
+
+The foreign key references `id_institucional` (VARCHAR) rather than `id` (BIGINT) because:
+
+1. **Stability**: `id_institucional` doesn't change when the database is cleaned between semesters
+2. **Independent CSV Loading**: Each department can load their CSV without querying for internal IDs
+3. **Simplicity**: Direct reference from CSV columns to database columns
+
+#### Field Descriptions
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | BIGINT | Internal relationship identifier |
+| `id_institucional` | VARCHAR(20) | FK → `usuarios.id_institucional` |
+| `rol_id` | BIGINT | FK → `roles.id` |
+
+#### Key Constraints
+
+- **Primary Key**: `id`
+- **Unique**: `(id_institucional, rol_id)` - Prevents duplicate role assignments
+- **Foreign Keys**: 
+  - `id_institucional` → `usuarios.id_institucional` (ON DELETE CASCADE)
+  - `rol_id` → `roles.id`
+
+---
+
+## Role-Specific Information Tables
+
+### info_estudiante
+
+Academic program information for users with the `Estudiante` role.
+
+```sql
+CREATE TABLE info_estudiante (
+    id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_institucional VARCHAR(20)  NOT NULL UNIQUE
+                     REFERENCES usuarios(id_institucional) ON DELETE CASCADE,
+    programa         VARCHAR(150) NOT NULL
+);
+
+CREATE INDEX idx_info_est_id_inst ON info_estudiante (id_institucional);
+```
+
+#### Field Descriptions
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | BIGINT | Internal record identifier |
+| `id_institucional` | VARCHAR(20) | FK → `usuarios.id_institucional` |
+| `programa` | VARCHAR(150) | Academic program name (e.g., "Ingeniería de Sistemas") |
+
+#### Automatic Role Assignment
+
+When a row is inserted into `info_estudiante`, a trigger automatically:
+1. Finds the `Estudiante` role ID
+2. Creates a record in `usuario_roles`
+3. Handles duplicates gracefully with `ON CONFLICT DO NOTHING`
+
+---
+
+### info_empleado
+
+Employment information for users with the `Empleado` role.
+
+```sql
+CREATE TABLE info_empleado (
+    id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_institucional VARCHAR(20)  NOT NULL UNIQUE
+                     REFERENCES usuarios(id_institucional) ON DELETE CASCADE,
+    cargo            VARCHAR(150) NOT NULL,
+    dependencia      VARCHAR(150) NOT NULL
+);
+
+CREATE INDEX idx_info_emp_id_inst ON info_empleado (id_institucional);
+```
+
+#### Field Descriptions
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | BIGINT | Internal record identifier |
+| `id_institucional` | VARCHAR(20) | FK → `usuarios.id_institucional` |
+| `cargo` | VARCHAR(150) | Job title (e.g., "Coordinador de Tesorería") |
+| `dependencia` | VARCHAR(150) | Department (e.g., "Área Financiera") |
+
+---
+
+### info_contratista
+
+Company information for users with the `Contratista` role.
+
+```sql
+CREATE TABLE info_contratista (
+    id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_institucional VARCHAR(20)  NOT NULL UNIQUE
+                     REFERENCES usuarios(id_institucional) ON DELETE CASCADE,
+    empresa          VARCHAR(200) NOT NULL
+);
+
+CREATE INDEX idx_info_con_id_inst ON info_contratista (id_institucional);
+```
+
+#### Field Descriptions
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | BIGINT | Internal record identifier |
+| `id_institucional` | VARCHAR(20) | FK → `usuarios.id_institucional` |
+| `empresa` | VARCHAR(200) | Contractor company name (e.g., "Sistemas Avanzados SAS") |
+
+---
+
+## Incident Tracking Tables
+
+### fallas
+
+Records each incident when a user enters without their physical ID card.
+
+```sql
+CREATE TABLE fallas (
+    id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id_institucional VARCHAR(20)  NOT NULL
+                     REFERENCES usuarios(id_institucional) ON DELETE CASCADE,
+    fecha_hora       TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+    motivo           VARCHAR(10)  NOT NULL
+                     CHECK (motivo IN ('olvido', 'perdida'))
+);
+
+CREATE INDEX idx_fallas_id_inst    ON fallas (id_institucional);
+CREATE INDEX idx_fallas_fecha_hora ON fallas (fecha_hora DESC);
+```
+
+#### Field Descriptions
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | BIGINT | Internal incident identifier |
+| `id_institucional` | VARCHAR(20) | FK → `usuarios.id_institucional` |
+| `fecha_hora` | TIMESTAMPTZ | Incident timestamp (with timezone) |
+| `motivo` | VARCHAR(10) | Reason: `olvido` (forgot) or `perdida` (lost) |
+
+#### Automatic Blocking Trigger
+
+After each INSERT, the `fn_actualizar_fallas()` trigger:
+1. Counts total failures for the user
+2. Updates `usuarios.total_fallas`
+3. Sets `usuarios.acceso = 'bloqueado'` if count ≥ 4
+
+```sql
+CREATE OR REPLACE FUNCTION fn_actualizar_fallas()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_id_inst   VARCHAR(20);
+    v_total     INT;
+BEGIN
+    v_id_inst := CASE WHEN TG_OP = 'DELETE' THEN OLD.id_institucional
+                                             ELSE NEW.id_institucional END;
+
+    SELECT COUNT(*) INTO v_total
+    FROM fallas
+    WHERE id_institucional = v_id_inst;
+
+    UPDATE usuarios
+    SET total_fallas = v_total,
+        acceso       = CASE WHEN v_total >= 4 THEN 'bloqueado' ELSE acceso END
+    WHERE id_institucional = v_id_inst;
+
+    RETURN NULL;
+END;
+$$;
+```
+
+---
+
+## Administrative Tables
+
+### semestres
+
+Manages academic semesters. Only one semester can be active at a time.
+
+```sql
+CREATE TABLE semestres (
+  id           BIGSERIAL PRIMARY KEY,
+  nombre       TEXT        NOT NULL,          -- e.g., '2026-1', '2026-2'
+  fecha_inicio DATE        NOT NULL,
+  fecha_fin    DATE        NOT NULL,
+  activo       BOOLEAN     NOT NULL DEFAULT true,
+  creado_en    TIMESTAMPTZ NOT NULL DEFAULT now(),
+
+  CONSTRAINT semestres_fechas_validas CHECK (fecha_fin > fecha_inicio)
+);
+
+-- Only one active semester allowed
+CREATE UNIQUE INDEX semestres_activo_unico
+  ON semestres (activo)
+  WHERE activo = true;
+```
+
+#### Field Descriptions
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | BIGSERIAL | Internal semester identifier |
+| `nombre` | TEXT | Semester name (e.g., "2026-1") |
+| `fecha_inicio` | DATE | Semester start date |
+| `fecha_fin` | DATE | Semester end date |
+| `activo` | BOOLEAN | Whether this is the current semester |
+| `creado_en` | TIMESTAMPTZ | Record creation timestamp |
+
+#### Constraints
+
+- **Check**: `fecha_fin > fecha_inicio`
+- **Unique Index**: Only one row can have `activo = true`
+
+---
+
+## Common Queries
+
+### Get User with All Roles
+
+```sql
+SELECT 
+    u.id_institucional,
+    u.nombre_completo,
+    u.acceso,
+    u.total_fallas,
+    STRING_AGG(r.nombre_rol, ', ' ORDER BY r.nombre_rol) AS roles
+FROM usuarios u
+LEFT JOIN usuario_roles ur ON ur.id_institucional = u.id_institucional
+LEFT JOIN roles r ON r.id = ur.rol_id
+WHERE u.id_institucional = '80123456'
+GROUP BY u.id_institucional, u.nombre_completo, u.acceso, u.total_fallas;
+```
+
+### Get Role-Specific Information
+
+```sql
+-- Student info
+SELECT u.*, ie.programa
+FROM usuarios u
+JOIN info_estudiante ie ON ie.id_institucional = u.id_institucional
+WHERE u.id_institucional = '80123456';
+
+-- Employee info
+SELECT u.*, emp.cargo, emp.dependencia
+FROM usuarios u
+JOIN info_empleado emp ON emp.id_institucional = u.id_institucional
+WHERE u.id_institucional = '80123456';
+
+-- Contractor info
+SELECT u.*, con.empresa
+FROM usuarios u
+JOIN info_contratista con ON con.id_institucional = u.id_institucional
+WHERE u.id_institucional = '80123456';
+```
+
+### Count Users by Role
+
+```sql
+SELECT 
+    r.nombre_rol,
+    COUNT(ur.id_institucional) AS total_usuarios
+FROM roles r
+LEFT JOIN usuario_roles ur ON ur.rol_id = r.id
+GROUP BY r.nombre_rol
+ORDER BY total_usuarios DESC;
+```
+
+### Find Users with Multiple Roles
+
+```sql
+SELECT 
+    u.id_institucional,
+    u.nombre_completo,
+    COUNT(ur.rol_id) AS num_roles,
+    STRING_AGG(r.nombre_rol, ', ' ORDER BY r.nombre_rol) AS roles
+FROM usuarios u
+JOIN usuario_roles ur ON ur.id_institucional = u.id_institucional
+JOIN roles r ON r.id = ur.rol_id
+GROUP BY u.id_institucional, u.nombre_completo
+HAVING COUNT(ur.rol_id) > 1
+ORDER BY num_roles DESC;
+```
+
+---
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Stored Procedures" icon="code" href="/database/procedures">
+    Database functions and triggers
+  </Card>
+  <Card title="Data Loading" icon="upload" href="/database/data-loading">
+    CSV format and bulk loading
+  </Card>
+</CardGroup>

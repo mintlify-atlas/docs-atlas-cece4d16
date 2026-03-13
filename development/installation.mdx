@@ -1,0 +1,155 @@
+---
+title: 'Installation'
+description: 'Install and set up the UCC Control de Acceso development environment'
+---
+
+## Prerequisites
+
+Before installing the application, ensure you have the following installed:
+
+- **Node.js 18+** - JavaScript runtime environment
+- **npm** or **yarn** - Package manager for Node.js
+
+You can verify your installations by running:
+
+```bash
+node --version
+npm --version
+```
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone the repository">
+    Clone the project repository to your local machine:
+
+    ```bash
+    git clone <repository-url>
+    cd ucc-control-acceso
+    ```
+  </Step>
+
+  <Step title="Install dependencies">
+    Install all required dependencies using your preferred package manager:
+
+    <CodeGroup>
+      ```bash npm
+      npm install
+      ```
+
+      ```bash yarn
+      yarn install
+      ```
+
+      ```bash pnpm
+      pnpm install
+      ```
+    </CodeGroup>
+
+    This will install all dependencies listed in `package.json`, including:
+    - React 18.2.0
+    - Vite 5.0.8
+    - Tailwind CSS 3.3.6
+    - React Router DOM 6.20.0
+    - Supabase Client 2.97.0
+    - And more...
+  </Step>
+
+  <Step title="Configure environment variables">
+    Copy the example environment file and configure your settings:
+
+    ```bash
+    cp .env.example .env
+    ```
+
+    See the [Environment Configuration](/development/environment) page for detailed configuration instructions.
+  </Step>
+
+  <Step title="Verify installation">
+    Start the development server to verify everything is working:
+
+    <CodeGroup>
+      ```bash npm
+      npm run dev
+      ```
+
+      ```bash yarn
+      yarn dev
+      ```
+
+      ```bash pnpm
+      pnpm dev
+      ```
+    </CodeGroup>
+
+    The application should open automatically at `http://localhost:3000`.
+  </Step>
+</Steps>
+
+## Key Dependencies
+
+The project uses the following main dependencies:
+
+### Core Framework
+- **React 18.2.0** - Frontend framework with hooks and modern features
+- **React DOM 18.2.0** - React rendering for web
+- **React Router DOM 6.20.0** - Client-side routing
+
+### Build Tools
+- **Vite 5.0.8** - Fast build tool and development server
+- **@vitejs/plugin-react 4.2.1** - Vite plugin for React support
+
+### Styling
+- **Tailwind CSS 3.3.6** - Utility-first CSS framework
+- **PostCSS 8.4.32** - CSS processor
+- **Autoprefixer 10.4.16** - Automatic vendor prefixing
+
+### Backend Integration
+- **@supabase/supabase-js 2.97.0** - Supabase client library
+- **Axios 1.6.2** - HTTP client for API requests
+
+### Data & Charts
+- **Recharts 3.7.0** - React charting library
+- **xlsx 0.18.5** - Excel file handling
+
+## Troubleshooting
+
+### Node Version Issues
+
+If you encounter compatibility issues, ensure you're using Node.js 18 or higher:
+
+```bash
+node --version
+```
+
+Consider using [nvm](https://github.com/nvm-sh/nvm) to manage Node.js versions:
+
+```bash
+nvm install 18
+nvm use 18
+```
+
+### Dependency Installation Errors
+
+If you encounter errors during installation, try:
+
+1. Clear npm cache:
+   ```bash
+   npm cache clean --force
+   ```
+
+2. Delete `node_modules` and `package-lock.json`:
+   ```bash
+   rm -rf node_modules package-lock.json
+   npm install
+   ```
+
+### Port Already in Use
+
+If port 3000 is already in use, you can modify the port in `vite.config.js` or kill the process using that port.
+
+## Next Steps
+
+After installation, proceed to:
+- [Environment Configuration](/development/environment) - Configure environment variables
+- [Running Locally](/development/running-locally) - Start the development server
