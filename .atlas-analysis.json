@@ -1,0 +1,135 @@
+{
+  "projectType": "saas",
+  "projectName": "UCC Control de Acceso",
+  "projectDescription": "Sistema de control de acceso contingente para la Universidad Cooperativa de Colombia cuando los usuarios no portan carnet físico",
+  "theme": "linden",
+  "primaryColor": "#003DA5",
+  "lightColor": "#4A7BBA",
+  "darkColor": "#002870",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "architecture"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/authentication",
+              "features/user-profiles",
+              "features/failure-tracking",
+              "features/blocking-system",
+              "features/admin-dashboard"
+            ]
+          },
+          {
+            "group": "User Guides",
+            "pages": [
+              "guides/student-guide",
+              "guides/employee-guide",
+              "guides/contractor-guide",
+              "guides/admin-guide"
+            ]
+          },
+          {
+            "group": "Database",
+            "pages": [
+              "database/schema",
+              "database/tables",
+              "database/procedures",
+              "database/data-loading"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Development",
+        "groups": [
+          {
+            "group": "Setup",
+            "pages": [
+              "development/installation",
+              "development/environment",
+              "development/running-locally"
+            ]
+          },
+          {
+            "group": "Frontend",
+            "pages": [
+              "development/frontend/architecture",
+              "development/frontend/modules",
+              "development/frontend/components"
+            ]
+          },
+          {
+            "group": "Backend",
+            "pages": [
+              "development/backend/supabase-setup",
+              "development/backend/authentication",
+              "development/backend/database-operations"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Administration",
+        "groups": [
+          {
+            "group": "Dashboard",
+            "pages": [
+              "admin/dashboard-overview",
+              "admin/user-search",
+              "admin/blocking-management"
+            ]
+          },
+          {
+            "group": "Reports",
+            "pages": [
+              "admin/reports/overview",
+              "admin/reports/monthly-reports",
+              "admin/reports/export-excel"
+            ]
+          },
+          {
+            "group": "Semester Management",
+            "pages": [
+              "admin/semester/data-loading",
+              "admin/semester/csv-format",
+              "admin/semester/cleanup"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Institutional ID-based authentication",
+    "Multi-role user support (Student, Employee, Contractor)",
+    "Automatic blocking system for repeated failures",
+    "Administrative dashboard with real-time metrics",
+    "Excel report generation",
+    "Bulk CSV data loading per semester",
+    "Complete audit trail",
+    "Clean Architecture implementation"
+  ],
+  "publicApiSurface": [
+    "POST /api/auth/login - Validate institutional ID",
+    "GET /api/usuarios/:id - Get user information",
+    "POST /api/registro-falla - Register access failure",
+    "POST /api/admin/desbloquear - Unblock user",
+    "GET /api/admin/dashboard - Dashboard statistics",
+    "GET /api/admin/reportes/:tipo - Export reports",
+    "POST /api/admin/carga-csv - Load bulk data",
+    "sp_registrar_ingreso_sin_carnet() - Register failure stored procedure",
+    "sp_desbloquear_usuario() - Unblock user stored procedure",
+    "sp_obtener_usuario_completo() - Get complete user info",
+    "sp_preparar_nuevo_semestre() - Prepare new semester"
+  ]
+}
